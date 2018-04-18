@@ -1,0 +1,27 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "get",
+        "post"
+      ]
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "name": "statusHistoryTable",
+      "type": "table",
+      "connection": "AzureWebJobsStorage",
+      "tableName":"statusHistoryTable",
+      "direction": "in"
+    }
+  ],
+  "disabled": false
+}

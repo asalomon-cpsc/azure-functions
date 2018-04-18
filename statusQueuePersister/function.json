@@ -1,0 +1,19 @@
+{
+  "bindings": [
+    {
+      "name": "myQueueItem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "status-states-queue",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "outTable",
+      "type": "table",
+      "connection": "AzureWebJobsStorage",
+      "tableName": "statusTable",
+      "direction": "in"
+    }
+  ],
+  "disabled": false
+}

@@ -1,0 +1,38 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "get",
+        "post"
+      ]
+    },
+    {
+      "type": "queue",
+      "name": "statesValues",
+      "queueName": "status-states-queue",
+      "connection": "AzureWebJobsStorage",
+      "direction": "out"
+    },
+    {
+      "type": "queue",
+      "name": "historyValues",
+      "queueName": "status-history-queue",
+      "connection": "AzureWebJobsStorage",
+      "direction": "out"
+    },
+    {
+      "name": "message",
+      "type": "sendGrid",
+      "direction": "out",
+      "apiKey" : "SENDGRID_API_KEY",
+      "to": "asalomon@cpsc.gov",
+      "from": "asalomon@azure.com",
+      "subject": "Azure Site Status Alert"
+  }
+  ],
+  "disabled": false
+}

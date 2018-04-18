@@ -1,0 +1,19 @@
+{
+  "bindings": [
+    {
+      "name": "myQueueItem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "status-history-queue",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "statusHistoryTable",
+      "type": "table",
+      "direction": "out",
+      "tableName": "statusHistoryTable",
+      "connection": "AzureWebJobsStorage"
+    }
+  ],
+  "disabled": false
+}
