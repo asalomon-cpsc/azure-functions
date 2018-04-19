@@ -5,13 +5,11 @@ using Newtonsoft.Json;
 using System.Net;
 using System;
 using System.Text;
-using System.Net.Mail;
-
 //this function runs the poller program and returns the site status/states
 //the poller program will send states to the status-state-queue
 //then the statusQueuePersister function who is subscribed to the status-state-queue will consume the the message
 // in order to persist it in the storage table
-public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, TraceWriter log, Mail message)
+public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, TraceWriter log, SendGridMessage message)
 {
     log.Info("C# HTTP trigger function processed a request.");
     var urls = new Dictionary<string, string>();
@@ -53,7 +51,7 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
        text.AppendLine("--------------");
     }
     if(text.Length>1){
-      message =  SendEmail(text.ToString(),message);
+      message =  SendEmail(text.ToString());
     
     }
 
@@ -61,25 +59,18 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
 
 }
 
-public static Mail SendEmail(string body,Mail message){
+public static SendGridMessage SendEmail(string body){
 
-     message = new Mail
-    {        
-        Subject = "Azure news"          
-    };
-
-    var personalization = new Personalization();
-    personalization.AddTo(new Email("asalomon@cpsc.gov"));   
-
-    Content content = new Content
-    {
-        Type = "text/plain",
-        Value = body
-    };
-    message.AddContent(content);
-    message.AddPersonalization(personalization);
+    
+   var  message = new SendGridMessage();
+    message.AddTo("asalomon@cpsc.gov");
+    message.AddContent("text/plain",body);
+    message.SetFrom(new EmailAddress("asalomon@azure.com"));
+    message.SetSubject("Azure Site Status Notification");
     return message;
 }
+
+
 public class StateEntity
 {
     public string UrlName { get; set; }
