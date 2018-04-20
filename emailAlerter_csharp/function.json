@@ -1,0 +1,21 @@
+{
+  "disabled": false,
+  "bindings": [
+    {
+      "name": "myQueueItem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "status-notifications-queue",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "$return",
+      "type": "sendGrid",
+      "direction": "out",
+      "apiKey" : "SENDGRID_API_KEY",
+      "to": "asalomon@cpsc.gov ",
+      "from": "asalomon@azure.com",
+      "subject": "Azure Site Status Notification"
+  }
+  ]
+}

@@ -19,6 +19,13 @@
     },
     {
       "type": "queue",
+      "name": "errorValues",
+      "queueName": "status-notifications-queue",
+      "connection": "AzureWebJobsStorage",
+      "direction": "out"
+    },
+    {
+      "type": "queue",
       "name": "historyValues",
       "queueName": "status-history-queue",
       "connection": "AzureWebJobsStorage",

@@ -8,7 +8,7 @@ using System.Net.Mail;
 //the poller program will send states to the status-state-queue
 //then the statusQueuePersister function who is subscribed to the status-state-queue will consume the the message
 // in order to persist it in the storage table
-public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, TraceWriter log)
+public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, ICollector<State> errorValues, TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
     var urls = new Dictionary<string, string>();
@@ -29,9 +29,9 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
 
         foreach (var status in contents)
         {
-            log.Info($"type is: {status.GetType().Name}");
-            log.Info(status.UrlName);
-            log.Info(status.Url);
+            //log.Info($"type is: {status.GetType().Name}");
+            //log.Info(status.UrlName);
+            //log.Info(status.Url);
             urls.Add(status.UrlName, status.Url);
         }
 
@@ -40,8 +40,13 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
     List<State> pollValue = await RunPoller(log, urls);
     foreach (var v in pollValue)
     {
+        if(v.Status=="OK"){
         historyValues.Add(v);
         statesValues.Add(v);
+        }else{
+            errorValues.Add(v);
+            log.Info($"added {v.UrlName} with a status of {v.Status} to the errors queue");
+        }
     }
 
     return pollValue;
@@ -76,6 +81,12 @@ static async Task<List<State>> RunPoller(TraceWriter log, IDictionary<string, st
         catch (Exception ex)
         {
             log.Info(ex.Message);
+            sList.Add(new State(){
+                UrlName = resource.Key,
+                Url = resource.Value,
+                Status = "NotFound",
+                Description = ex.Message
+            });
         }
     }
 
