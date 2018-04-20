@@ -23,16 +23,7 @@
       "queueName": "status-history-queue",
       "connection": "AzureWebJobsStorage",
       "direction": "out"
-    },
-    {
-      "name": "message",
-      "type": "sendGrid",
-      "direction": "out",
-      "apiKey" : "SENDGRID_API_KEY",
-      "to": "asalomon@cpsc.gov",
-      "from": "asalomon@azure.com",
-      "subject": "Azure Site Status Alert"
-  }
+    }
   ],
   "disabled": false
 }
