@@ -1,22 +1,20 @@
 #r "Newtonsoft.Json"
-#r "SendGrid"
-using SendGrid.Helpers.Mail;
 using Newtonsoft.Json;
 using System.Net;
 using System;
-using System.Text;
+using System.Net.Mail;
+
 //this function runs the poller program and returns the site status/states
 //the poller program will send states to the status-state-queue
 //then the statusQueuePersister function who is subscribed to the status-state-queue will consume the the message
 // in order to persist it in the storage table
-public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, TraceWriter log, SendGridMessage message)
+public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
     var urls = new Dictionary<string, string>();
     HttpResponseMessage response;
     var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
     log.Info($"func url {functionUrl}");
-    StringBuilder text = new StringBuilder();
     using (var client = new HttpClient())
     {
         client.DefaultRequestHeaders.Accept.Clear();
@@ -28,7 +26,7 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
         string content = await response.Content.ReadAsStringAsync();
         log.Info($"content is: {content}");
         List<StateEntity> contents = JsonConvert.DeserializeObject<List<StateEntity>>(content);
-        
+
         foreach (var status in contents)
         {
             log.Info($"type is: {status.GetType().Name}");
@@ -40,37 +38,15 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
 
     }
     List<State> pollValue = await RunPoller(log, urls);
-    
     foreach (var v in pollValue)
     {
-       historyValues.Add(v);
-       statesValues.Add(v);
-       text.AppendLine($"Url : {v.Url}\n");
-       text.AppendLine($"Poll Status : {v.Status}\n");
-       text.AppendLine($"Status Description : {v.Description}\n");
-       text.AppendLine("--------------");
-    }
-    if(text.Length>1){
-      message =  SendEmail(text.ToString());
-    
+        historyValues.Add(v);
+        statesValues.Add(v);
     }
 
     return pollValue;
 
 }
-
-public static SendGridMessage SendEmail(string body){
-
-    
-   var  message = new SendGridMessage();
-    message.AddTo("asalomon@cpsc.gov");
-    message.AddContent("text/plain",body);
-    message.SetFrom(new EmailAddress("asalomon@azure.com"));
-    message.SetSubject("Azure Site Status Notification");
-    return message;
-}
-
-
 public class StateEntity
 {
     public string UrlName { get; set; }
