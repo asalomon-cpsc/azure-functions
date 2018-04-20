@@ -24,16 +24,17 @@ public static void Run(CloudQueueMessage myQueueItem,
         log.Info(state.Description);
         
     message = new Mail();
-   StringBuilder b = new StringBuilder();
-            b.AppendLine("The following resources had or have a status change: ");
-            b.AppendLine(
-                $"\r--\rResource URI: {state.Url}\rStatus Code: {state.Status}\rDescription: {state.Description}\rTime: {DateTime.UtcNow.ToLocalTime().ToString()}\r--\r");
-
+   StringBuilder text = new StringBuilder();
+       text.AppendLine($"The following resources had or have a status change: ");
+       text.AppendLine($"Url : {state.Url}\n");
+       text.AppendLine($"Poll Status : {state.Status}\n");
+       text.AppendLine($"Status Description : {state.Description}\n");
+       text.AppendLine("--------------");
     
     Content content = new Content
     {
-        Type = "text/plain",
-        Value = b.ToString()
+        Type = "text/html",
+        Value = text.ToString()
     };
     message.AddContent(content);
    

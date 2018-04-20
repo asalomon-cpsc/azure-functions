@@ -9,7 +9,7 @@
       "connection": "AzureWebJobsStorage"
     },
     {
-      "name": "$return",
+      "name": "message",
       "type": "sendGrid",
       "direction": "out",
       "apiKey" : "SENDGRID_API_KEY",
