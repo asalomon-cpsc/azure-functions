@@ -26,6 +26,7 @@ public static void Run(CloudQueueMessage myQueueItem,
     message = new Mail();
    StringBuilder text = new StringBuilder();
        text.AppendLine($"<h3>The following resources had or have a status change: </h3>");
+       text.AppendLine($"<p>UrlName : {state.UrlName}</P>");
        text.AppendLine($"<p>Url : {state.Url}</P>");
        text.AppendLine($"<p>Poll Status : {state.Status}</p>");
        text.AppendLine($"<p>Status Description : {state.Description}</p>");
