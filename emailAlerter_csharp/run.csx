@@ -32,7 +32,7 @@ public static void Run(CloudQueueMessage myQueueItem,
        text.AppendLine($"<p>Status Description : {state.Description}</p>");
        text.AppendLine("<hr/>");
      var personalization = new Personalization();
-     var recipients = Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
+     Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
                         .Split(';')
                         .ToList()
                         .ForEach(e=>
