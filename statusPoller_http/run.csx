@@ -8,10 +8,11 @@ using System.Net.Mail;
 //the poller program will send states to the status-state-queue
 //then the statusQueuePersister function who is subscribed to the status-state-queue will consume the the message
 // in order to persist it in the storage table
-public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, ICollector<State> errorValues, TraceWriter log)
+public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, ICollector<string> errorValues, TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
     var urls = new Dictionary<string, string>();
+    List<State> errors = new List<State>();
     HttpResponseMessage response;
     var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
     log.Info($"func url {functionUrl}");
@@ -29,9 +30,6 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
 
         foreach (var status in contents)
         {
-            //log.Info($"type is: {status.GetType().Name}");
-            //log.Info(status.UrlName);
-            //log.Info(status.Url);
             urls.Add(status.UrlName, status.Url);
         }
 
@@ -40,13 +38,16 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
     List<State> pollValue = await RunPoller(log, urls);
     foreach (var v in pollValue)
     {
-        if(v.Status=="OK"){
+       
         historyValues.Add(v);
         statesValues.Add(v);
-        }else{
-            errorValues.Add(v);
+         if(v.Status!="OK"){
+            errors.Add(v);
             log.Info($"added {v.UrlName} with a status of {v.Status} to the errors queue");
         }
+    }
+    if(errors.Any()){
+        errorValues.Add(JsonConvert.SerializeObject(errors));
     }
 
     return pollValue;
@@ -110,7 +111,7 @@ public static async Task<State> Poll(string UrlName, string Url)
     using (var client = new HttpClient(handler))
     {
         client.DefaultRequestHeaders.Accept.Clear();
-        client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
+        //client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
         client.Timeout = TimeSpan.FromSeconds(10);
 
         response = await client.GetAsync(Url, HttpCompletionOption.ResponseContentRead);

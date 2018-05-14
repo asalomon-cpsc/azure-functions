@@ -17,20 +17,24 @@ public static void Run(CloudQueueMessage myQueueItem,
     int dequeueCount, TraceWriter log, out Mail message)
 {
     log.Info($"C# Queue trigger function processed: {myQueueItem}");
-        StateEntity state =JsonConvert.DeserializeObject<StateEntity>(myQueueItem.AsString);
-        log.Info(state.UrlName);
-        log.Info(state.Url);
-        log.Info(state.Date.ToString());
-        log.Info(state.Description);
+        List<StateEntity> states =JsonConvert.DeserializeObject<List<StateEntity>>(myQueueItem.AsString);
+       
         
     message = new Mail();
    StringBuilder text = new StringBuilder();
        text.AppendLine($"<h3>The following resources had or have a status change: </h3>");
-       text.AppendLine($"<p>UrlName : {state.UrlName}</P>");
+       foreach(var state in states){
+        log.Info(state.UrlName);
+        log.Info(state.Url);
+        log.Info(state.Date.ToString());
+        log.Info(state.Description);
+       text.AppendLine($"<p>UrlName : <strong>{state.UrlName}<strong></p>");
        text.AppendLine($"<p>Url : {state.Url}</P>");
        text.AppendLine($"<p>Poll Status : {state.Status}</p>");
        text.AppendLine($"<p>Status Description : {state.Description}</p>");
-       text.AppendLine("<hr/>");
+        text.AppendLine("<hr/>");
+       }
+      
      var personalization = new Personalization();
      Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
                         .Split(';')
