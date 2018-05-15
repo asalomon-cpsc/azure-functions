@@ -56,11 +56,17 @@ public static void Run(CloudQueueMessage myQueueItem,
 
          
 }
+/*
+[{"UrlName":"neiss_open_data_url",
+"Url":"https://api.cpsc.gov/opendataApi/neissdata/list?startAge=12&endAge=24&api_key=WrdogILtxJ1f0tWkmV8q9gDlBEoUYJ1j40qwYb6N",
+"Status":"NotFound",
+"Description":"A task was canceled."}]
 
+ */
 public class StateEntity
 {
     public StateEntity(){
-        
+        this.Date = DateTime.Now;
     }
     public StateEntity(string url,string urlName, string status, string description){
         

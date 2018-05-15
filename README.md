@@ -14,10 +14,9 @@ The alerter module of the application is provided by [SendGrid](https://sendgrid
 
 
 ## Logical Architecture
+![architecture](/azure_functions_architecture.jpg "architecture")
 
 
-
-## Data Stores
 
 
 ## Pros and Cons
