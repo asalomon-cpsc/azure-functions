@@ -111,16 +111,32 @@ public static async Task<State> Poll(string UrlName, string Url)
     using (var client = new HttpClient(handler))
     {
         client.DefaultRequestHeaders.Accept.Clear();
-        //client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
+        client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
         client.Timeout = TimeSpan.FromSeconds(10);
 
-        response = await client.GetAsync(Url, HttpCompletionOption.ResponseContentRead);
+        response = await client.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead);
 
         if (response.StatusCode != HttpStatusCode.BadGateway && response.StatusCode != HttpStatusCode.RequestTimeout)
         {
             string content = await response.Content.ReadAsStringAsync();
             content = CreateStatusMessageForFalsePositives(content);
-            _state = string.IsNullOrEmpty(content) ? new State()
+            CreateState(response,content);
+        }
+        else
+        {
+            _state = new State()
+            {
+                Status = response.StatusCode.ToString(),
+                Description = "Web Page Is Not Responding, Requests Are Timing Out",
+                UrlName = UrlName,
+                Url = Url
+            };
+        }
+    }
+    return _state;
+}
+public static State CreateState(HttpResponseMessage response, string content){
+  State   status = string.IsNullOrEmpty(content) ? new State()
             {
                 Status = response.StatusCode.ToString(),
                 Url = Url,
@@ -133,21 +149,9 @@ public static async Task<State> Poll(string UrlName, string Url)
                 Url = Url,
                 UrlName = UrlName
             };
-        }
-        else
-        {
-            _state = new State()
-            {
-                Status = response.StatusCode.ToString(),
-                Description = "Web Page Is Not Responding, Requests Are Timing Out",
 
-                Url = Url
-            };
-        }
-    }
-    return _state;
+            return status;
 }
-
 public static string CreateStatusMessageForFalsePositives(string content)
 {
     return content.Contains("Under Maintenance")
