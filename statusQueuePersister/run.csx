@@ -30,9 +30,9 @@ public static void Run(CloudQueueMessage myQueueItem,
         
          StateEntity state =JsonConvert.DeserializeObject<StateEntity>(myQueueItem.AsString);
         state.ETag = "*";
-        if(outTable.Exists()){
-           TableOperation deleteOperation = TableOperation.Delete(state);
-        }
+       
+          // TableOperation deleteOperation = TableOperation.Delete(state);
+        
             state.RowKey = state.UrlName;
              log.Info("The url could not be retrieved.");
              TableOperation insertOperation = TableOperation.InsertOrReplace(state);
