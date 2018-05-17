@@ -85,7 +85,7 @@ static async Task<List<State>> RunPoller(TraceWriter log, IDictionary<string, st
                 UrlName = resource.Key,
                 Url = resource.Value,
                 Status = "NotFound",
-                Description = ex.InnerException.Message
+                Description = ex.Message
             });
         }
     }
