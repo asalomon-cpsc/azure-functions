@@ -110,7 +110,7 @@ public static async Task<State> Poll(string UrlName, string Url,TraceWriter log)
     {
         client.DefaultRequestHeaders.Accept.Clear();
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
-        client.Timeout = TimeSpan.FromSeconds(30);
+        client.Timeout = TimeSpan.FromSeconds(60);
 
         response = await client.GetAsync(Url,HttpCompletionOption.ResponseContentRead);
         
