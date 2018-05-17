@@ -19,7 +19,6 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
     using (var client = new HttpClient())
     {
         client.DefaultRequestHeaders.Accept.Clear();
-        client.Timeout = TimeSpan.FromSeconds(10);
 
         response = await client.GetAsync(functionUrl);
 
@@ -75,7 +74,7 @@ static async Task<List<State>> RunPoller(TraceWriter log, IDictionary<string, st
         log.Info($"Currently Polling:{cpscName}---{resource.Value} ");
         try
         {
-            var pollingTask = await Poll(resource.Key, resource.Value);
+            var pollingTask = await Poll(resource.Key, resource.Value,log);
             log.Info($"Poll Result for {cpscName}---{resource.Value}  is {pollingTask.Description} ");
             sList.Add(pollingTask);
         }
@@ -86,7 +85,7 @@ static async Task<List<State>> RunPoller(TraceWriter log, IDictionary<string, st
                 UrlName = resource.Key,
                 Url = resource.Value,
                 Status = "NotFound",
-                Description = ex.Message
+                Description = ex.InnerException.Message
             });
         }
     }
@@ -103,40 +102,34 @@ public struct State
 
 }
 
-public static async Task<State> Poll(string UrlName, string Url)
+public static async Task<State> Poll(string UrlName, string Url,TraceWriter log)
 {
-    var _state = new State();
     HttpResponseMessage response;
-    using (var handler = new HttpClientHandler { UseDefaultCredentials = true, ClientCertificateOptions = ClientCertificateOption.Automatic })
+    using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
     using (var client = new HttpClient(handler))
     {
         client.DefaultRequestHeaders.Accept.Clear();
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
-        client.Timeout = TimeSpan.FromSeconds(10);
+        client.Timeout = TimeSpan.FromSeconds(30);
 
-        response = await client.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead);
-
+        response = await client.GetAsync(Url,HttpCompletionOption.ResponseContentRead);
+        
         if (response.StatusCode != HttpStatusCode.BadGateway && response.StatusCode != HttpStatusCode.RequestTimeout)
         {
-            string content = await response.Content.ReadAsStringAsync();
-            content = CreateStatusMessageForFalsePositives(content);
-            CreateState(response,content);
-        }
-        else
-        {
-            _state = new State()
+            log.Info("poll result entered 1st condition state");
+            log.Info($"result for {UrlName} is {response.StatusCode}");
+            if(response.StatusCode == HttpStatusCode.GatewayTimeout){
+                return  new State()
             {
                 Status = response.StatusCode.ToString(),
-                Description = "Web Page Is Not Responding, Requests Are Timing Out",
+                Url = Url,
                 UrlName = UrlName,
-                Url = Url
+                Description = "More info here :  https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504"
             };
-        }
-    }
-    return _state;
-}
-public static State CreateState(HttpResponseMessage response, string content){
-  State   status = string.IsNullOrEmpty(content) ? new State()
+            }
+            string content = await response.Content.ReadAsStringAsync();
+            content = CreateStatusMessageForFalsePositives(content);
+            return string.IsNullOrEmpty(content) ? new State()
             {
                 Status = response.StatusCode.ToString(),
                 Url = Url,
@@ -149,9 +142,29 @@ public static State CreateState(HttpResponseMessage response, string content){
                 Url = Url,
                 UrlName = UrlName
             };
-
-            return status;
+        }
+        
+       else
+        {
+            log.Info("poll result entered 2nd condition state");
+            return new State()
+            {
+                Status = response.StatusCode.ToString(),
+                Description = "Web Page Is Not Responding, Requests Are Timing Out",
+                UrlName = UrlName,
+                Url = Url
+            };
+       }
+    }
+    return  new State()
+            {
+                Status = "NA",
+                Url = Url,
+                UrlName = UrlName,
+    
+            };
 }
+
 public static string CreateStatusMessageForFalsePositives(string content)
 {
     return content.Contains("Under Maintenance")
