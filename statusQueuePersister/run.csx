@@ -4,6 +4,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 using System;
+using System.Text;
 using Microsoft.WindowsAzure.Storage.Table;
 using Microsoft.Azure;
 
@@ -30,10 +31,9 @@ public static void Run(CloudQueueMessage myQueueItem,
         
          StateEntity state =JsonConvert.DeserializeObject<StateEntity>(myQueueItem.AsString);
         state.ETag = "*";
-        if(outTable.Exists()){
-           TableOperation deleteOperation = TableOperation.Delete(state);
-        }
-            state.RowKey = state.UrlName;
+       
+          // TableOperation deleteOperation = TableOperation.Delete(state);
+             state.RowKey = ConvertStringToBase64EncodedString(state.Url);
              log.Info("The url could not be retrieved.");
              TableOperation insertOperation = TableOperation.InsertOrReplace(state);
              log.Info("The url is being inserted...");
@@ -51,10 +51,16 @@ public static void Run(CloudQueueMessage myQueueItem,
                 }
             }
                 catch(Exception ex){
-                    log.Info(ex.Message);
+                    log.Info($"Could not insert into table, error is : {ex.Message}");
+                    log.Info($"row key is {state.RowKey}");
                 }
 
-}          
+} 
+public static string ConvertStringToBase64EncodedString(string input){
+    byte[] b = Encoding.ASCII.GetBytes(input);
+    string encodedBytes = System.Convert.ToBase64String(b);
+    return encodedBytes;
+}         
         
 public class StateEntity:TableEntity
 {

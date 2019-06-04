@@ -1,41 +1,34 @@
 #r "Newtonsoft.Json"
+#r "Microsoft.WindowsAzure.Storage"
 using Newtonsoft.Json;
 using System.Net;
 using System;
 using System.Net.Mail;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Queue;
 
-//this function runs the poller program and returns the site status/states
-//the poller program will send states to the status-state-queue
-//then the statusQueuePersister function who is subscribed to the status-state-queue will consume the the message
-// in order to persist it in the storage table
-public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<State> historyValues, ICollector<State> statesValues, ICollector<string> errorValues, TraceWriter log)
+
+public static void Run(
+    CloudQueueMessage myQueueItem, 
+    DateTimeOffset expirationTime, 
+    DateTimeOffset insertionTime, 
+    DateTimeOffset nextVisibleTime,
+    string queueTrigger,
+    string id,
+    string popReceipt,
+    int dequeueCount, 
+    ICollector<State> historyValues, 
+    ICollector<State> statesValues, 
+    ICollector<string> errorValues, 
+    TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
-    var urls = new Dictionary<string, string>();
+    
     List<State> errors = new List<State>();
-    HttpResponseMessage response;
-    var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
-    log.Info($"func url {functionUrl}");
-    using (var client = new HttpClient())
-    {
-        client.DefaultRequestHeaders.Accept.Clear();
-
-        response = await client.GetAsync(functionUrl);
-
-        log.Info($"response code: {response.StatusCode.ToString()}");
-        string content = await response.Content.ReadAsStringAsync();
-        log.Info($"content is: {content}");
-        List<StateEntity> contents = JsonConvert.DeserializeObject<List<StateEntity>>(content);
-
-        foreach (var status in contents)
-        {
-            urls.Add(status.UrlName, status.Url);
-        }
-
-
-    }
-    List<State> pollValue = await RunPoller(log, urls);
-    foreach (var v in pollValue)
+     StateEntity state =JsonConvert.DeserializeObject<StateEntity>(myQueueItem.AsString);
+     state.Etag = "*";
+    //List<State> pollValue = await RunPoller(log, urls);
+    foreach (var v in RunPoller(log,state))
     {
        
         historyValues.Add(v);
@@ -49,7 +42,7 @@ public static async Task<List<State>> Run(HttpRequestMessage req, ICollector<Sta
         errorValues.Add(JsonConvert.SerializeObject(errors));
     }
 
-    return pollValue;
+    //return pollValue;
 
 }
 public class StateEntity
@@ -62,35 +55,30 @@ public class StateEntity
     public DateTime TimeStamp { get; set; }
     public string Etag { get; set; }
 }
-static async Task<List<State>> RunPoller(TraceWriter log, IDictionary<string, string> urls)
+static  IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
 {
 
     string cpscName = "CPSC Web Site";
+    log.Info($"Currently Polling:{cpscName}---{url.UrlName} ");
+       // try
+       // {
+            var pollingTask =  Poll(url.UrlName, url.Url,log);
+            log.Info($"Poll Result for {cpscName}---{url.UrlName}  is {pollingTask.Description} ");
+            yield return pollingTask;
+       // }
+      //  catch (Exception ex)
+      //  {
+       //     log.Info(ex.Message);
+      //      sList.Add(new State(){
+       //         UrlName = resource.Key.ToString(),
+      //          Url = resource.Value,
+      //          Status = "NotFound",
+      //         Description = ex.Message
+      //      });
+       // }
+    
 
-    HashSet<State> sList = new HashSet<State>();
-
-    foreach (var resource in urls)
-    {
-        log.Info($"Currently Polling:{cpscName}---{resource.Value} ");
-        try
-        {
-            var pollingTask = await Poll(resource.Key, resource.Value,log);
-            log.Info($"Poll Result for {cpscName}---{resource.Value}  is {pollingTask.Description} ");
-            sList.Add(pollingTask);
-        }
-        catch (Exception ex)
-        {
-            log.Info(ex.Message);
-            sList.Add(new State(){
-                UrlName = resource.Key,
-                Url = resource.Value,
-                Status = "NotFound",
-                Description = ex.InnerException.Message
-            });
-        }
-    }
-
-    return sList.ToList();
+    //return sList.ToList();
 }
 
 public struct State
@@ -102,45 +90,43 @@ public struct State
 
 }
 
-public static async Task<State> Poll(string UrlName, string Url,TraceWriter log)
+public static State Poll(string UrlName, string Url,TraceWriter log)
 {
-    HttpResponseMessage response;
+    Task<HttpResponseMessage> response;
     using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
     using (var client = new HttpClient(handler))
     {
         client.DefaultRequestHeaders.Accept.Clear();
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
-        client.Timeout = TimeSpan.FromSeconds(30);
-
-        response = await client.GetAsync(Url,HttpCompletionOption.ResponseContentRead);
-        
-        if (response.StatusCode != HttpStatusCode.BadGateway && response.StatusCode != HttpStatusCode.RequestTimeout)
-        {
+        client.Timeout = TimeSpan.FromSeconds(60);
+        response = client.GetAsync(Url,HttpCompletionOption.ResponseHeadersRead);
+        if (response.Result.StatusCode != HttpStatusCode.BadGateway && response.Result.StatusCode != HttpStatusCode.RequestTimeout)
+         {
             log.Info("poll result entered 1st condition state");
-            log.Info($"result for {UrlName} is {response.StatusCode}");
-            if(response.StatusCode == HttpStatusCode.GatewayTimeout){
+            log.Info($"result for {UrlName} is {response.Result.StatusCode}");
+            if(response.Result.StatusCode == HttpStatusCode.GatewayTimeout){
                 return  new State()
-            {
-                Status = response.StatusCode.ToString(),
-                Url = Url,
-                UrlName = UrlName,
-                Description = "More info here :  https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504"
-            };
+                {
+                    Status = response.Result.StatusCode.ToString(),
+                    Url = Url,
+                    UrlName = UrlName,
+                    Description = "More info here :  https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504"
+                };
             }
-            string content = await response.Content.ReadAsStringAsync();
+            string content = response.Result.ReasonPhrase;// response.Content.ReadAsStringAsync();
             content = CreateStatusMessageForFalsePositives(content);
-            return string.IsNullOrEmpty(content) ? new State()
+            return string.IsNullOrEmpty(content) ?  new State()      
             {
-                Status = response.StatusCode.ToString(),
+                Status = response.Result.StatusCode.ToString(),
                 Url = Url,
                 UrlName = UrlName,
-                Description = response.ReasonPhrase
-            } :
-            new State()
+                Description = response.Result.ReasonPhrase
+            }:
+             new State()
             {
                 Status = content,
-                Url = Url,
-                UrlName = UrlName
+                 Url = Url,
+                 UrlName = UrlName
             };
         }
         
@@ -149,20 +135,14 @@ public static async Task<State> Poll(string UrlName, string Url,TraceWriter log)
             log.Info("poll result entered 2nd condition state");
             return new State()
             {
-                Status = response.StatusCode.ToString(),
+                Status = response.Result.StatusCode.ToString(),
                 Description = "Web Page Is Not Responding, Requests Are Timing Out",
                 UrlName = UrlName,
                 Url = Url
             };
        }
     }
-    return  new State()
-            {
-                Status = "NA",
-                Url = Url,
-                UrlName = UrlName,
     
-            };
 }
 
 public static string CreateStatusMessageForFalsePositives(string content)
