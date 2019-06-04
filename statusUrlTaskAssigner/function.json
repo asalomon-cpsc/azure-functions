@@ -1,0 +1,22 @@
+{
+  "disabled": true,
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "get",
+        "post"
+      ]
+    },
+    {
+      "type": "queue",
+      "name": "urlValues",
+      "queueName": "status-url-queue",
+      "connection": "AzureWebJobsStorage",
+      "direction": "out"
+    }
+  ]
+}
