@@ -38,10 +38,7 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, IColle
         foreach (var status in contents)
         {
              urlValues.Add(status);
-            // if(!urls.ContainsKey(status.UrlName)){
-            //     urls.Add(status.UrlName, status.Url);
-
-            // }
+            
         }
 
 
