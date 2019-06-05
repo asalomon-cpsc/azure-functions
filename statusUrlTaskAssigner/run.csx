@@ -8,7 +8,7 @@ using System.Text;
 using Microsoft.WindowsAzure.Storage.Table;
 using Microsoft.Azure;
 using System.Net;
-public static void Run(CloudQueueMessage myQueueItem, 
+public static async Task Run(CloudQueueMessage myQueueItem, 
     DateTimeOffset expirationTime, 
     DateTimeOffset insertionTime, 
     DateTimeOffset nextVisibleTime,
@@ -18,9 +18,13 @@ public static void Run(CloudQueueMessage myQueueItem,
     int dequeueCount,
     ICollector<StateEntity> urlValues, TraceWriter log)
 {
-    log.Info("C# HTTP trigger function processed a request.");
-    
+        log.Info("C# HTTP trigger function processed a request.");
+        if(myQueueItem == null || string.IsNullOrEmpty(myQueueItem.AsString)){
+            return;
+        }
+        
         var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
+        HttpResponseMessage response;
         log.Info($"func url {functionUrl}");
         List<StateEntity> contents = default(List<StateEntity>);
         using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
@@ -44,6 +48,7 @@ public static void Run(CloudQueueMessage myQueueItem,
             }
             foreach (var status in contents)
             {
+                log.Info($"adding  {status.UrlName} to queue");
                 urlValues.Add(status);
                 
             }
