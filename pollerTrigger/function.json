@@ -6,6 +6,13 @@
       "type": "timerTrigger",
       "direction": "in",
       "schedule": "0 */60 * * * *"
+    },
+    {
+      "name": "myQueueItem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "status-initiator-queue",
+      "connection": "AzureWebJobsStorage"
     }
   ]
 }

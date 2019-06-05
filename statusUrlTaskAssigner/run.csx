@@ -8,45 +8,46 @@ using System.Text;
 using Microsoft.WindowsAzure.Storage.Table;
 using Microsoft.Azure;
 using System.Net;
-public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, ICollector<StateEntity> urlValues, TraceWriter log)
+public static void Run(CloudQueueMessage myQueueItem, 
+    DateTimeOffset expirationTime, 
+    DateTimeOffset insertionTime, 
+    DateTimeOffset nextVisibleTime,
+    string queueTrigger,
+    string id,
+    string popReceipt,
+    int dequeueCount,
+    ICollector<StateEntity> urlValues, TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
-    var urls = new Dictionary<string, string>();
-    HttpResponseMessage response;
-    var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
-    log.Info($"func url {functionUrl}");
-    List<StateEntity> contents = default(List<StateEntity>);
-    using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
-    using (var client = new HttpClient(handler))
-    {
-        client.DefaultRequestHeaders.Accept.Clear();
-        client.Timeout = TimeSpan.FromSeconds(60);
-        response = await client.GetAsync(functionUrl);
-        log.Info($"response code: {response.StatusCode.ToString()}");
-        string content = await response.Content.ReadAsStringAsync();
-        log.Info($"content is: {content}");
-        
-        try
+    
+        var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
+        log.Info($"func url {functionUrl}");
+        List<StateEntity> contents = default(List<StateEntity>);
+        using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
+        using (var client = new HttpClient(handler))
         {
-            contents = JsonConvert.DeserializeObject<List<StateEntity>>(content);
-        }
-        catch (Exception ex)
-        {
-
-            log.Info($"an exception accured while deserializing state entity {ex.Message}");
-        }
-        foreach (var status in contents)
-        {
-             urlValues.Add(status);
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.Timeout = TimeSpan.FromSeconds(60);
+            response = await client.GetAsync(functionUrl);
+            log.Info($"response code: {response.StatusCode.ToString()}");
+            string content = await response.Content.ReadAsStringAsync();
+            log.Info($"content is: {content}");
             
+            try
+            {
+                contents = JsonConvert.DeserializeObject<List<StateEntity>>(content);
+            }
+            catch (Exception ex)
+            {
+
+                log.Info($"an exception accured while deserializing state entity {ex.Message}");
+            }
+            foreach (var status in contents)
+            {
+                urlValues.Add(status);
+                
+            }
         }
-
-
-    }
-
-     return  (contents.Count == 0 || contents == null)
-        ? req.CreateResponse(HttpStatusCode.InternalServerError, "Unable to retreive URL list from database")
-        : req.CreateResponse(HttpStatusCode.OK, $"Successfully assigned {contents.Count} urls for polling!");
 
 }
 public class UrlItem
