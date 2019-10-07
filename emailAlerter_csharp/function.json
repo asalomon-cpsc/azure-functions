@@ -13,7 +13,7 @@
       "type": "sendGrid",
       "direction": "out",
       "apiKey": "SENDGRID_API_KEY",
-      "from": "asalomon@azure.net",
+      "from": "asalomon@azure.com",
       "subject": "Azure Site Status Notification"
     }
   ]
