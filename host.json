@@ -1,3 +1,11 @@
 {
+<<<<<<< HEAD
   "version": "1.0"
+=======
+  "version": "2.0",
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[1.*, 2.0.0)"
+}
+>>>>>>> fbb6627e9a0e028fac9f086b8d608a2478a443f8
 }

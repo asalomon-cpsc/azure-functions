@@ -1,15 +1,12 @@
 {
-  "disabled": true,
+  "disabled": false,
   "bindings": [
     {
-      "authLevel": "function",
-      "name": "req",
-      "type": "httpTrigger",
+      "name": "myQueueItem",
+      "type": "queueTrigger",
       "direction": "in",
-      "methods": [
-        "get",
-        "post"
-      ]
+      "queueName": "status-initiator-queue",
+      "connection": "AzureWebJobsStorage"
     },
     {
       "type": "queue",
