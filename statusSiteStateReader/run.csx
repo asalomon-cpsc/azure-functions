@@ -13,9 +13,9 @@ public static async Task<HttpResponseMessage> Run(IQueryable<StateEntity> status
        .Value;
 
 
-    return await req.CreateResponse(HttpStatusCode.OK, statusTable.Where(p => p.PartitionKey == "statuses" && p.Status != "OK").ToList());
+    return req.CreateResponse(HttpStatusCode.OK, statusTable.Where(p => p.PartitionKey == "statuses" && p.Status != "OK").ToList());
 
-
+}
 
 
 public class StateEntity : TableEntity
