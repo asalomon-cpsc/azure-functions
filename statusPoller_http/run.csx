@@ -59,7 +59,18 @@ static  IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
 {
     string cpscName = "CPSC Web Site";
     log.Info($"Currently Polling:{cpscName}---{url.UrlName} ");
-    var pollingTask =  Poll(url.UrlName, url.Url,log);
+    State pollingTask = default(State);
+    try{
+        pollingTask =  Poll(url.UrlName, url.Url,log);
+    }catch(Exception e){
+        pollingTask = new State()
+            {
+                Status = "500",
+                Description = $"{e.Message}",
+                UrlName = url.UrlName,
+                Url = url.Url
+            };
+    }
     log.Info($"Poll Result for {cpscName}---{url.UrlName}  is {pollingTask.Description} ");
     yield return pollingTask;
 
@@ -84,7 +95,7 @@ public static State Poll(string UrlName, string Url,TraceWriter log)
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
         client.Timeout = TimeSpan.FromSeconds(10);
         try{
-           response = await client.GetAsync(Url);
+           response = client.GetAsync(Url);
            
         }
         catch(HttpRequestException e){
