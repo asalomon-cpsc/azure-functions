@@ -65,7 +65,7 @@ static  IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
     }
     catch (System.AggregateException ex)
     {
-                StringBuilder e = new StringBuilder();
+                System.Text.StringBuilder e = new  System.Text.StringBuilder();
                 ex.Flatten().InnerExceptions.ToList().ForEach(exception =>
                 {
                    e.Append(ex.Message);
