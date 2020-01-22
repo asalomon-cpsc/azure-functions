@@ -60,22 +60,22 @@ static  IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
 
     string cpscName = "CPSC Web Site";
     log.Info($"Currently Polling:{cpscName}---{url.UrlName} ");
-       // try
-       // {
+        try
+        {
             var pollingTask =  Poll(url.UrlName, url.Url,log);
             log.Info($"Poll Result for {cpscName}---{url.UrlName}  is {pollingTask.Description} ");
             yield return pollingTask;
-       // }
-      //  catch (Exception ex)
-      //  {
-       //     log.Info(ex.Message);
-      //      sList.Add(new State(){
-       //         UrlName = resource.Key.ToString(),
-      //          Url = resource.Value,
-      //          Status = "NotFound",
-      //         Description = ex.Message
-      //      });
-       // }
+        }
+        catch (Exception ex)
+        {
+            log.Info(ex.Message);
+            yield return new State(){
+                UrlName = url.UrlName,
+                Url = url.Url,
+                Status = "Fatal Error",
+                Description = ex.Message
+            };
+        }
     
 
     //return sList.ToList();
