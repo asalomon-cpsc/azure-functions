@@ -74,7 +74,7 @@ static  IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
             pollingTask = new State()
             {
                 Status = "500",
-                Description = $"{e.ToString()}",
+                Description = e.ToString(),
                 UrlName = url.UrlName,
                 Url = url.Url
             };
