@@ -109,7 +109,7 @@ public static State Poll(string UrlName, string Url,TraceWriter log)
             return new State()
             {
                 Status = "500",
-                Description = $"e.Message",
+                Description = $"{e.Message}",
                 UrlName = UrlName,
                 Url = Url
             };
