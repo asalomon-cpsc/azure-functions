@@ -100,7 +100,7 @@ public static State Poll(string UrlName, string Url,TraceWriter log)
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
         client.Timeout = TimeSpan.FromSeconds(10);
         try{
-           response = client.GetAsync(Url,HttpCompletionOption.ResponseHeadersRead);
+           response = await client.GetAsync(Url,HttpCompletionOption.ResponseHeadersRead);
            response.EnsureSuccessStatusCode();
         }
         catch(HttpRequestException e){
