@@ -62,15 +62,25 @@ static  IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
     State pollingTask = default(State);
     try{
         pollingTask =  Poll(url.UrlName, url.Url,log);
-    }catch(Exception e){
-        pollingTask = new State()
+    }
+    catch (System.AggregateException ex)
+    {
+                StringBuilder e = new StringBuilder();
+                ex.Flatten().InnerExceptions.ToList().ForEach(exception =>
+                {
+                   e.Append(ex.Message);
+
+                });
+            pollingTask = new State()
             {
                 Status = "500",
-                Description = $"{e.Message}",
+                Description = $"{e.ToString()}",
                 UrlName = url.UrlName,
                 Url = url.Url
             };
-    }
+
+     }
+    
     log.Info($"Poll Result for {cpscName}---{url.UrlName}  is {pollingTask.Description} ");
     yield return pollingTask;
 
