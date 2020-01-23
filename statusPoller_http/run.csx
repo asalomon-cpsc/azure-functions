@@ -103,7 +103,7 @@ public static State Poll(string UrlName, string Url,TraceWriter log)
     {
         client.DefaultRequestHeaders.Accept.Clear();
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
-        client.Timeout = TimeSpan.FromSeconds(10);
+        client.Timeout = TimeSpan.FromSeconds(60);
         response = client.GetAsync(Url,HttpCompletionOption.ResponseHeadersRead);
         
         if (response.Result.StatusCode != HttpStatusCode.BadGateway && response.Result.StatusCode != HttpStatusCode.RequestTimeout)
