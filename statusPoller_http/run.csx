@@ -8,7 +8,6 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Queue;
 
 
-private static HttpClient client = new HttpClient();
 public static void Run(
     CloudQueueMessage myQueueItem,
     DateTimeOffset expirationTime,
@@ -24,12 +23,11 @@ public static void Run(
     TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
-    client.DefaultRequestHeaders.Accept.Clear();
-    client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
-    client.Timeout = TimeSpan.FromSeconds(60);
+
     List<State> errors = new List<State>();
     StateEntity state = JsonConvert.DeserializeObject<StateEntity>(myQueueItem.AsString);
     state.Etag = "*";
+    //List<State> pollValue = await RunPoller(log, urls);
     foreach (var v in RunPoller(log, state))
     {
 
@@ -45,6 +43,8 @@ public static void Run(
     {
         errorValues.Add(JsonConvert.SerializeObject(errors));
     }
+
+    //return pollValue;
 
 }
 public class StateEntity
@@ -101,53 +101,57 @@ public struct State
 public static State Poll(string UrlName, string Url, TraceWriter log)
 {
     Task<HttpResponseMessage> response;
-
-
-    response = client.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead);
-
-    if (response.Result.StatusCode != HttpStatusCode.BadGateway && response.Result.StatusCode != HttpStatusCode.RequestTimeout)
+    using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
+    using (var client = new HttpClient(handler))
     {
-        log.Info("poll result entered 1st condition state");
-        log.Info($"result for {UrlName} is {response.Result.StatusCode}");
-        if (response.Result.StatusCode == HttpStatusCode.GatewayTimeout)
+        client.DefaultRequestHeaders.Accept.Clear();
+        client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
+        client.Timeout = TimeSpan.FromSeconds(60);
+        response = client.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead);
+
+        if (response.Result.StatusCode != HttpStatusCode.BadGateway && response.Result.StatusCode != HttpStatusCode.RequestTimeout)
         {
-            return new State()
+            log.Info("poll result entered 1st condition state");
+            log.Info($"result for {UrlName} is {response.Result.StatusCode}");
+            if (response.Result.StatusCode == HttpStatusCode.GatewayTimeout)
+            {
+                return new State()
+                {
+                    Status = response.Result.StatusCode.ToString(),
+                    Url = Url,
+                    UrlName = UrlName,
+                    Description = "More info here :  https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504"
+                };
+            }
+            string content = response.Result.ReasonPhrase;// response.Content.ReadAsStringAsync();
+            content = CreateStatusMessageForFalsePositives(content);
+            return string.IsNullOrEmpty(content) ? new State()
             {
                 Status = response.Result.StatusCode.ToString(),
                 Url = Url,
                 UrlName = UrlName,
-                Description = "More info here :  https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504"
+                Description = response.Result.ReasonPhrase
+            } :
+             new State()
+             {
+                 Status = content,
+                 Url = Url,
+                 UrlName = UrlName
+             };
+        }
+
+        else
+        {
+            log.Info("poll result entered 2nd condition state");
+            return new State()
+            {
+                Status = response.Result.StatusCode.ToString(),
+                Description = "Web Page Is Not Responding, Requests Are Timing Out",
+                UrlName = UrlName,
+                Url = Url
             };
         }
-        string content = response.Result.ReasonPhrase;
-        content = CreateStatusMessageForFalsePositives(content);
-        return string.IsNullOrEmpty(content) ? new State()
-        {
-            Status = response.Result.StatusCode.ToString(),
-            Url = Url,
-            UrlName = UrlName,
-            Description = response.Result.ReasonPhrase
-        } :
-         new State()
-         {
-             Status = content,
-             Url = Url,
-             UrlName = UrlName
-         };
     }
-
-    else
-    {
-        log.Info("poll result entered 2nd condition state");
-        return new State()
-        {
-            Status = response.Result.StatusCode.ToString(),
-            Description = "Web Page Is Not Responding, Requests Are Timing Out",
-            UrlName = UrlName,
-            Url = Url
-        };
-    }
-
 
 }
 
