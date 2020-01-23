@@ -24,7 +24,9 @@ public static void Run(
     TraceWriter log)
 {
     log.Info("C# HTTP trigger function processed a request.");
-
+    client.DefaultRequestHeaders.Accept.Clear();
+    client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
+    client.Timeout = TimeSpan.FromSeconds(60);
     List<State> errors = new List<State>();
     StateEntity state = JsonConvert.DeserializeObject<StateEntity>(myQueueItem.AsString);
     state.Etag = "*";
@@ -100,9 +102,7 @@ public static State Poll(string UrlName, string Url, TraceWriter log)
 {
     Task<HttpResponseMessage> response;
 
-    client.DefaultRequestHeaders.Accept.Clear();
-    client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
-    client.Timeout = TimeSpan.FromSeconds(60);
+
     response = client.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead);
 
     if (response.Result.StatusCode != HttpStatusCode.BadGateway && response.Result.StatusCode != HttpStatusCode.RequestTimeout)
