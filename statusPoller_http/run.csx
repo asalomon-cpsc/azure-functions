@@ -104,21 +104,7 @@ public static State Poll(string UrlName, string Url,TraceWriter log)
         client.DefaultRequestHeaders.Accept.Clear();
         client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
         client.Timeout = TimeSpan.FromSeconds(10);
-        try{
-           response = client.GetAsync(Url);
-           
-        }
-        catch(HttpRequestException e){
-
-            log.Info("an exception occured will making the http request");
-            return new State()
-            {
-                Status = "500",
-                Description = $"{e.Message}",
-                UrlName = UrlName,
-                Url = Url
-            };
-        }
+        response = client.GetAsync(Url,HttpCompletionOption.ResponseHeadersRead);
         
         if (response.Result.StatusCode != HttpStatusCode.BadGateway && response.Result.StatusCode != HttpStatusCode.RequestTimeout)
          {
