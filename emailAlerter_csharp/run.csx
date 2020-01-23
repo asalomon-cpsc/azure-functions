@@ -19,6 +19,11 @@ public static void Run(CloudQueueMessage myQueueItem,
     log.Info($"C# Queue trigger function processed: {myQueueItem}");
         List<StateEntity> states =JsonConvert.DeserializeObject<List<StateEntity>>(myQueueItem.AsString);
         message = new Mail();
+    string dashboardUrl = "Location not loaded";
+    string dashboard_url_env = Environment.GetEnvironmentVariable("dashboard_url");
+    if(!string.IsNullOrEmpty(dashboard_url_env)){ 
+        dashboardUrl = dashboard_url_env;
+    }
     StringBuilder text = new StringBuilder();
        text.AppendLine($"<h3>The following resources had or have a status change: </h3>");
        foreach(var state in states){
@@ -31,6 +36,8 @@ public static void Run(CloudQueueMessage myQueueItem,
         text.AppendLine($"<p>Poll Status : {state.Status}</p>");
         text.AppendLine($"<p>Status Description : {state.Description}</p>");
         text.AppendLine("<hr/>");
+        text.AppendLine("---------------");
+        text.AppendLine($"<p>To view the dashboard of for all sites click here: <a href='{dashboardUrl}'>{dashboardUrl}</a><p>");
        }
       
      var personalization = new Personalization();
