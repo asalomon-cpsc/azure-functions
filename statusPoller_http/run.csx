@@ -76,8 +76,8 @@ static IEnumerable<State> RunPoller(TraceWriter log, StateEntity url)
         });
         pollingTask = new State()
         {
-            Status = "500",
-            Description = e.ToString(),
+            Status = "000",
+            Description = $" This may be a transient, a temporary error that is likely to disappear soon. - {e.ToString()}. You can view the daashboard and re-initiate the polling by clicking on the refresh button ot be sure.",
             UrlName = url.UrlName,
             Url = url.Url
         };
