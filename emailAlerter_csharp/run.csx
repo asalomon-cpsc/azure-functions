@@ -7,9 +7,9 @@ using Microsoft.WindowsAzure.Storage.Queue;
 using SendGrid.Helpers.Mail;
 using System;
 using System.Text;
-public static void Run(CloudQueueMessage myQueueItem, 
-    DateTimeOffset expirationTime, 
-    DateTimeOffset insertionTime, 
+public static void Run(CloudQueueMessage myQueueItem,
+    DateTimeOffset expirationTime,
+    DateTimeOffset insertionTime,
     DateTimeOffset nextVisibleTime,
     string queueTrigger,
     string id,
@@ -17,16 +17,18 @@ public static void Run(CloudQueueMessage myQueueItem,
     int dequeueCount, TraceWriter log, out Mail message)
 {
     log.Info($"C# Queue trigger function processed: {myQueueItem}");
-        List<StateEntity> states =JsonConvert.DeserializeObject<List<StateEntity>>(myQueueItem.AsString);
-        message = new Mail();
+    List<StateEntity> states = JsonConvert.DeserializeObject<List<StateEntity>>(myQueueItem.AsString);
+    message = new Mail();
     string dashboardUrl = "Location not loaded";
     string dashboard_url_env = Environment.GetEnvironmentVariable("dashboard_url");
-    if(!string.IsNullOrEmpty(dashboard_url_env)){ 
+    if (!string.IsNullOrEmpty(dashboard_url_env))
+    {
         dashboardUrl = dashboard_url_env;
     }
     StringBuilder text = new StringBuilder();
-       text.AppendLine($"<h3>The following resources had or have a status change: </h3>");
-       foreach(var state in states){
+    text.AppendLine($"<h3>The following resources had or have a status change: </h3>");
+    foreach (var state in states)
+    {
         log.Info(state.UrlName);
         log.Info(state.Url);
         log.Info(state.Date.ToString());
@@ -37,50 +39,52 @@ public static void Run(CloudQueueMessage myQueueItem,
         text.AppendLine($"<p>Status Description : {state.Description}</p>");
         text.AppendLine("<hr/>");
         text.AppendLine("---------------");
-        text.AppendLine($"<p>To view the dashboard of for all sites click here: <a href='{dashboardUrl}'>{dashboardUrl}</a><p>");
-       }
-      
-     var personalization = new Personalization();
-     Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
-                        .Split(';')
-                        .ToList()
-                        .ForEach(e=>
-                        {
-                            log.Info(e);
-                         personalization.AddTo(new Email(e));   
-                         
-                        });
+        text.AppendLine($"<p>To view the dashboard of for all sites click here <strong>(DOES NOT WORK WITH IE BROWSER)</strong>: <a href='{dashboardUrl}'>{dashboardUrl}</a><p>");
+    }
+
+    var personalization = new Personalization();
+    Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
+                       .Split(';')
+                       .ToList()
+                       .ForEach(e =>
+                       {
+                           log.Info(e);
+                           personalization.AddTo(new Email(e));
+
+                       });
 
     Content content = new Content
-    
+
     {
         Type = "text/html",
         Value = text.ToString()
     };
     message.AddContent(content);
     message.AddPersonalization(personalization);
-   
 
-         
+
+
 }
 
 public class StateEntity
 {
-    public StateEntity(){
+    public StateEntity()
+    {
         this.Date = DateTime.Now;
     }
-    public StateEntity(string url,string urlName, string status, string description){
-        
+    public StateEntity(string url, string urlName, string status, string description)
+    {
+
         this.UrlName = urlName;
         this.Url = url;
         this.Status = status;
         this.Description = description;
         this.Date = DateTime.Now;
     }
-    public string UrlName {get;set;}
-    public string Url {get;set;}
-    public string Status {get;set;}
-    public string Description {get;set;}
-    public DateTime Date {get;set;}
+    public string UrlName { get; set; }
+    public string Url { get; set; }
+    public string Status { get; set; }
+    public string Description { get; set; }
+    public DateTime Date { get; set; }
 }
 
