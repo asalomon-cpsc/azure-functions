@@ -25,7 +25,7 @@ public static async Task Run(CloudQueueMessage myQueueItem,
         
         var functionUrl = Environment.GetEnvironmentVariable("STATUS_URL_LIST_PROXY");
         HttpResponseMessage response;
-        log.Info($"func url {functionUrl}");
+        log.Info($"Function url {functionUrl}");
         List<StateEntity> contents = default(List<StateEntity>);
         using (var handler = new HttpClientHandler { ClientCertificateOptions = ClientCertificateOption.Automatic })
         using (var client = new HttpClient(handler))
@@ -33,7 +33,7 @@ public static async Task Run(CloudQueueMessage myQueueItem,
             client.DefaultRequestHeaders.Accept.Clear();
             client.Timeout = TimeSpan.FromSeconds(60);
             response = await client.GetAsync(functionUrl);
-            log.Info($"response code: {response.StatusCode.ToString()}");
+            log.Info($"Response code: {response.StatusCode.ToString()}");
             string content = await response.Content.ReadAsStringAsync();
             log.Info($"content is: {content}");
             
@@ -44,11 +44,11 @@ public static async Task Run(CloudQueueMessage myQueueItem,
             catch (Exception ex)
             {
 
-                log.Info($"an exception accured while deserializing state entity {ex.Message}");
+                log.Info($"An exception accured while deserializing state entity {ex.Message}");
             }
             foreach (var status in contents)
             {
-                log.Info($"adding  {status.UrlName} to queue");
+                log.Info($"Adding  {status.UrlName} to queue");
                 urlValues.Add(status);
                 
             }
