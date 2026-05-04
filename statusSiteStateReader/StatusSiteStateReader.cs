@@ -19,9 +19,15 @@ public class StatusSiteStateReader
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
 
+        var urlName = req.Query["urlName"];
+
+        // RowKey in statusTable is now urlName (set by PollUrlActivity in the new architecture)
+        string filter = string.IsNullOrWhiteSpace(urlName)
+            ? "PartitionKey eq 'statuses'"
+            : $"PartitionKey eq 'statuses' and RowKey eq '{urlName}'";
+
         var results = new List<StatusTableEntity>();
-        await foreach (var entity in tableClient.QueryAsync<StatusTableEntity>(
-            e => e.PartitionKey == "statuses"))
+        await foreach (var entity in tableClient.QueryAsync<StatusTableEntity>(filter))
         {
             results.Add(entity);
         }
