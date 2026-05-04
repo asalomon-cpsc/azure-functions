@@ -1,0 +1,52 @@
+name: Deploy Azure Functions
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_NAME: healthchker
+  AZURE_RESOURCE_GROUP: functions-cpsc1
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore cpsc-functions.csproj
+
+      - name: Build
+        run: dotnet build cpsc-functions.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish cpsc-functions.csproj --configuration Release --no-build --output ./publish
+
+      - name: Zip publish output
+        run: Compress-Archive -Path ./publish/* -DestinationPath ./publish.zip
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Functions
+        shell: bash
+        run: |
+          az functionapp deployment source config-zip \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --src ./publish.zip
+
+      - name: Logout
+        run: az logout
