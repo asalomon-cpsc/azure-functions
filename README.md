@@ -1,7 +1,7 @@
 # Site Status Notification
 
-The prupose of this is to provide a simple but contextual level of monitoring to any website or sections of public websites.
-It uses http polling to ping the website and attempts to read the website or http service's content after getting a successfull http return code.
+The purpose of this is to provide a simple but contextual level of monitoring to any website or sections of public websites.
+It uses http polling to ping the websites and attempts to read the website or http service's content after getting a successfull http return code.
 If an unsuccessful return code is read for 1 or more site, the application aggregates the number of failures and sends out an email alert.
 
 ## Infrastructure
