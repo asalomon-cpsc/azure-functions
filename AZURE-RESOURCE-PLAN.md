@@ -80,12 +80,30 @@ graph TD
 
 ## Resources to Provision
 
-| Resource | SKU/Tier | Purpose |
-|----------|----------|---------|
-| API Management | Consumption | Gateway for auth, rate limiting, routing |
-| Azure Communication Services | Free tier | Email alerts (ACS Email) |
-| Entra ID App Registration | N/A | OAuth2/OIDC for admin UI login |
-| Static Web App | Free | Host the UI (public + admin paths) |
+| Resource | Resource Group | SKU/Tier | Purpose |
+|----------|---------------|----------|---------|
+| API Management | `rg-apim-shared` | Consumption | Shared gateway — reusable across projects |
+| Azure Communication Services | `functions-cpsc1` | Free tier | Email alerts (ACS Email) |
+| Entra ID App Registration | N/A (tenant-level) | N/A | OAuth2/OIDC for admin UI login |
+| Static Web App | `functions-cpsc1` | Free | Host the UI (public + admin paths) |
+
+### Resource Group Strategy
+
+| Resource Group | Lifecycle | Contents |
+|---------------|-----------|----------|
+| `rg-apim-shared` | Long-lived, shared | APIM instance only — backends/APIs/policies added per project |
+| `functions-cpsc1` | Project-specific | Function App, ACS, SWA, Storage |
+
+> **Why separate?** APIM Consumption is pay-per-call with no base cost. A single instance can serve multiple projects. Isolating it means you can tear down project resource groups without losing the gateway, and add new project APIs without redeploying the gateway itself.
+
+### Bicep File Layout
+
+| File | Target Resource Group | Deploys |
+|------|----------------------|---------|
+| `infra/apim-shared.bicep` | `rg-apim-shared` | APIM instance |
+| `infra/main.bicep` | `functions-cpsc1` | ACS, SWA, APIM API/operations/policies (cross-RG ref to shared APIM) |
+| `infra/apim-shared.parameters.json` | — | Parameters for shared APIM |
+| `infra/main.parameters.json` | — | Parameters for project resources |
 
 ---
 
@@ -99,10 +117,16 @@ graph TD
   - Connect ACS resource to Function App via `ACS_ENDPOINT` app setting
   - Use Managed Identity (DefaultAzureCredential) — no connection strings in production
 
-## 2. API Management (APIM)
+## 2. API Management (APIM) — Shared Instance
 
-- **Resource**: `apim-cpsc`
+- **Resource Group**: `rg-apim-shared` (separate from project resources)
+- **Resource**: `apim-shared`
 - **SKU**: Consumption (serverless, pay-per-call, no monthly base cost)
+- **Reusability**: One instance serves all projects; each project adds its own API + backend + policies
+- **Deployed via**: `infra/apim-shared.bicep` (run once, or idempotent on re-run)
+
+### Health Check API (added by project Bicep)
+
 - **Backend**: Azure Function App `healthchker`
 - **APIs to expose**:
 
@@ -171,11 +195,11 @@ graph TD
 
 ## Implementation Order
 
-1. **ACS** — provision resource + email domain (immediate, needed for alerts)
-2. **Entra ID App Registrations** — create both API and SPA registrations
-3. **APIM** — provision, import Function App as backend, configure JWT policies
-4. **Static Web App** — provision (content deployed later)
-5. **Function App config** — enable managed identity, lock down access, add APIM named value for function key
+1. **APIM (shared)** — `az deployment group create -g rg-apim-shared -f infra/apim-shared.bicep` (one-time, reusable)
+2. **ACS + SWA** — `az deployment group create -g functions-cpsc1 -f infra/main.bicep` (project-specific + cross-RG APIM config)
+3. **Entra ID App Registrations** — create both API and SPA registrations (manual/CLI)
+4. **Function App config** — enable managed identity, lock down access, set ACS_ENDPOINT
+5. **APIM named value** — update `healthcheck-function-key` with actual Function App host key
 
 ---
 

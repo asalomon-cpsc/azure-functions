@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "apimName": {
+      "value": "apim-shared"
+    },
+    "publisherEmail": {
+      "value": "REPLACE_WITH_YOUR_EMAIL"
+    },
+    "publisherName": {
+      "value": "Platform Team"
+    }
+  }
+}
