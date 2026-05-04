@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace CpscFunctions;
@@ -12,22 +13,18 @@ public class HttpPollerTrigger
     public HttpPollerTrigger(ILogger<HttpPollerTrigger> logger) => _logger = logger;
 
     [Function("httpPollerTrigger")]
-    public async Task<HttpPollerOutput> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequestData req)
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequestData req,
+        [DurableClient] DurableTaskClient durableClient)
     {
-        _logger.LogInformation("C# HTTP poller trigger function processed a request.");
+        _logger.LogInformation("HTTP poller trigger — starting poll orchestration.");
 
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteStringAsync("Polling request has been initiated");
+        var instanceId = await durableClient.ScheduleNewOrchestrationInstanceAsync(
+            nameof(StatusPollerOrchestrator));
 
-        return new HttpPollerOutput { HttpResponse = response, QueueMessage = "Start" };
+        var response = req.CreateResponse(HttpStatusCode.Accepted);
+        await response.WriteStringAsync(
+            $"Polling request initiated. OrchestrationInstanceId: {instanceId}");
+        return response;
     }
-}
-
-public class HttpPollerOutput
-{
-    [QueueOutput("status-initiator-queue", Connection = "AzureWebJobsStorage")]
-    public string? QueueMessage { get; set; }
-
-    public HttpResponseData? HttpResponse { get; set; }
 }

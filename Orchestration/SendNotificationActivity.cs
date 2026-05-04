@@ -1,34 +1,31 @@
 using System.Text;
-using System.Text.Json;
 using Azure.Communication.Email;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 
 namespace CpscFunctions;
 
-public class EmailAlerter
+/// <summary>
+/// Sends an ACS email alert for all failing URLs.
+/// Replaces the old emailAlerter_csharp queue-triggered function.
+/// Called by StatusPollerOrchestrator only when at least one URL is non-OK.
+/// </summary>
+public class SendNotificationActivity
 {
-    private readonly ILogger<EmailAlerter> _logger;
     private readonly EmailClient _emailClient;
+    private readonly ILogger<SendNotificationActivity> _logger;
 
-    public EmailAlerter(ILogger<EmailAlerter> logger, EmailClient emailClient)
+    public SendNotificationActivity(EmailClient emailClient, ILogger<SendNotificationActivity> logger)
     {
-        _logger = logger;
         _emailClient = emailClient;
+        _logger = logger;
     }
 
-    [Function("emailAlerter_csharp")]
-    public async Task Run(
-        [QueueTrigger("status-notifications-queue", Connection = "AzureWebJobsStorage")] string message)
+    [Function(nameof(SendNotificationActivity))]
+    public async Task Run([ActivityTrigger] List<PollResult> failures)
     {
-        _logger.LogInformation("Email alerter triggered.");
-
-        var states = JsonSerializer.Deserialize<List<StatusPollResult>>(message,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (states is null || states.Count == 0) return;
-
-        var dashboardUrl = Environment.GetEnvironmentVariable("dashboard_url") ?? "Location not loaded";
+        if (failures is null || failures.Count == 0) return;
 
         var sender = Environment.GetEnvironmentVariable("EMAIL_SENDER")
             ?? throw new InvalidOperationException("EMAIL_SENDER app setting is not configured.");
@@ -39,13 +36,15 @@ public class EmailAlerter
         var recipientsEnv = Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
             ?? throw new InvalidOperationException("EMAIL_RECIPIENTS app setting is not configured.");
 
+        var dashboardUrl = Environment.GetEnvironmentVariable("dashboard_url") ?? "Location not loaded";
+
         var body = new StringBuilder();
         body.AppendLine("<h3>The following resources had or have a status change: </h3>");
 
-        foreach (var state in states)
+        foreach (var state in failures)
         {
-            _logger.LogInformation("{UrlName} | {Url} | {Date} | {Description}",
-                state.UrlName, state.Url, state.Date, state.Description);
+            _logger.LogInformation("{UrlName} | {Status} | {Description}",
+                state.UrlName, state.Status, state.Description);
 
             body.AppendLine($"<p>UrlName : <strong>{state.UrlName}</strong></p>");
             body.AppendLine($"<p>Url : {state.Url}</p>");

@@ -1,6 +1,7 @@
 using Azure.Communication.Email;
 using Azure.Identity;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -15,11 +16,10 @@ var host = new HostBuilder()
             client.DefaultRequestHeaders.Add("User-Agent", "azure_cpsc");
         });
 
-        // Named HTTP client for internal Azure endpoint calls (e.g. statusUrlListReader)
-        services.AddHttpClient("internal", client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
-        });
+        // Azure Table Storage client — used by Durable activities that write directly to tables
+        var storageConnection = Environment.GetEnvironmentVariable("AzureWebJobsStorage")
+            ?? "UseDevelopmentStorage=true";
+        services.AddAzureClients(clients => clients.AddTableServiceClient(storageConnection));
 
         // ACS Email: prefer managed identity (ACS_ENDPOINT) in production,
         // fall back to connection string (ACS_CONNECTION_STRING) for local dev.

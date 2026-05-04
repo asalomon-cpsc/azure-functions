@@ -3,6 +3,19 @@ using Azure.Data.Tables;
 
 namespace CpscFunctions;
 
+/// <summary>
+/// Returned by PollUrlActivity and aggregated by the orchestrator
+/// to decide whether to send a notification.
+/// </summary>
+public class PollResult
+{
+    public string UrlName { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public DateTime Date { get; set; } = DateTime.UtcNow;
+}
+
 // ---------------------------------------------------------------------------
 // Queue message models (plain POCOs — no ITableEntity, clean JSON serialization)
 // ---------------------------------------------------------------------------
