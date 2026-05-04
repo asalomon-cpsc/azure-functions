@@ -41,7 +41,12 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Azure Functions
-        run: az functionapp deployment source config-zip --name ${{ env.AZURE_FUNCTIONAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --src ./publish.zip
+        shell: bash
+        run: |
+          az functionapp deployment source config-zip \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --src ./publish.zip
 
       - name: Logout
         run: az logout
