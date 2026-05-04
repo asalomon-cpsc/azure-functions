@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+  AZURE_FUNCTIONAPP_NAME: healthchker
   AZURE_RESOURCE_GROUP: functions-cpsc1
   DOTNET_VERSION: '8.0.x'
 
