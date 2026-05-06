@@ -3,11 +3,11 @@
   "Values": {
     "AzureWebJobsStorage": "<storage-account-connection-string>",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-    "EMAIL_SENDER": "<donotreply@xxxxxxxx.azurecomm.net — from ACS resource > Email domains > Azure-managed domain>",
+    "EMAIL_SENDER": "DoNotReply@ef8338de-abde-4564-ac92-329ee056475b.azurecomm.net",
     "EMAIL_SUBJECT": "Azure Site Status Notification",
-    "EMAIL_RECIPIENTS": "<recipient1@example.com>;<recipient2@example.com>",
+    "EMAIL_RECIPIENTS": "asalomon@cpsc.gov",
     "ACS_CONNECTION_STRING": "<acs-connection-string-for-local-dev>",
-    "ACS_ENDPOINT": "",
+    "ACS_ENDPOINT": "https://vsemailaz.unitedstates.communication.azure.com",
     "dashboard_url": "<url-of-your-status-dashboard>",
     "STATUS_URL_LIST_PROXY": "<full-url-of-statusUrlListReader-function-with-code-key>"
   }

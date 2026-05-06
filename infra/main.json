@@ -1,0 +1,567 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "2269283820526020458"
+    }
+  },
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "defaultValue": "cpsc",
+      "metadata": {
+        "description": "Base name prefix for project resources"
+      }
+    },
+    "functionAppName": {
+      "type": "string",
+      "defaultValue": "healthchker",
+      "metadata": {
+        "description": "Existing Function App name"
+      }
+    },
+    "emailSender": {
+      "type": "string",
+      "defaultValue": "DoNotReply@ef8338de-abde-4564-ac92-329ee056475b.azurecomm.net",
+      "metadata": {
+        "description": "ACS sender address used by notification emails"
+      }
+    },
+    "emailSubject": {
+      "type": "string",
+      "defaultValue": "Azure Site Status Notification",
+      "metadata": {
+        "description": "Email subject for notification emails"
+      }
+    },
+    "emailRecipients": {
+      "type": "string",
+      "defaultValue": "asalomon@cpsc.gov",
+      "metadata": {
+        "description": "Semicolon-separated notification recipients"
+      }
+    },
+    "acsEndpoint": {
+      "type": "string",
+      "defaultValue": "https://vsemailaz.unitedstates.communication.azure.com",
+      "metadata": {
+        "description": "ACS endpoint used by the EmailClient managed identity flow"
+      }
+    },
+    "dashboardUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional dashboard URL included in notification emails"
+      }
+    },
+    "apimResourceGroup": {
+      "type": "string",
+      "defaultValue": "rg-apim-shared",
+      "metadata": {
+        "description": "Shared APIM resource group"
+      }
+    },
+    "apimName": {
+      "type": "string",
+      "defaultValue": "apim-shared",
+      "metadata": {
+        "description": "Shared APIM instance name"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "defaultValue": "[subscription().tenantId]",
+      "metadata": {
+        "description": "Entra ID tenant ID"
+      }
+    },
+    "swaLocation": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "allowedValues": [
+        "centralus",
+        "eastus2",
+        "westus2",
+        "westeurope",
+        "eastasia"
+      ],
+      "metadata": {
+        "description": "Static Web App location (limited regions for free tier)"
+      }
+    }
+  },
+  "variables": {
+    "acsName": "[format('acs-{0}-email', parameters('appName'))]",
+    "swaName": "[format('swa-{0}-healthcheck', parameters('appName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Communication/communicationServices",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('acsName')]",
+      "location": "global",
+      "properties": {
+        "dataLocation": "United States",
+        "linkedDomains": [
+          "[resourceId('Microsoft.Communication/emailServices/domains', format('{0}-email', variables('acsName')), 'AzureManagedDomain')]"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Communication/emailServices/domains', format('{0}-email', variables('acsName')), 'AzureManagedDomain')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Communication/emailServices",
+      "apiVersion": "2023-04-01",
+      "name": "[format('{0}-email', variables('acsName'))]",
+      "location": "global",
+      "properties": {
+        "dataLocation": "United States"
+      }
+    },
+    {
+      "type": "Microsoft.Communication/emailServices/domains",
+      "apiVersion": "2023-04-01",
+      "name": "[format('{0}/{1}', format('{0}-email', variables('acsName')), 'AzureManagedDomain')]",
+      "location": "global",
+      "properties": {
+        "domainManagement": "AzureManaged",
+        "userEngagementTracking": "Disabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Communication/emailServices', format('{0}-email', variables('acsName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('swaName')]",
+      "location": "[parameters('swaLocation')]",
+      "sku": {
+        "name": "Free",
+        "tier": "Free"
+      },
+      "properties": {
+        "stagingEnvironmentPolicy": "Enabled",
+        "allowConfigFileUpdates": true,
+        "buildProperties": {
+          "skipGithubActionWorkflowGeneration": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "function-app-settings",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "functionAppName": {
+            "value": "[parameters('functionAppName')]"
+          },
+          "emailSender": {
+            "value": "[parameters('emailSender')]"
+          },
+          "emailSubject": {
+            "value": "[parameters('emailSubject')]"
+          },
+          "emailRecipients": {
+            "value": "[parameters('emailRecipients')]"
+          },
+          "acsEndpoint": {
+            "value": "[parameters('acsEndpoint')]"
+          },
+          "dashboardUrl": {
+            "value": "[parameters('dashboardUrl')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "6927488687944845203"
+            }
+          },
+          "parameters": {
+            "functionAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Existing Function App name to configure"
+              }
+            },
+            "emailSender": {
+              "type": "string",
+              "metadata": {
+                "description": "ACS sender address used by notification emails"
+              }
+            },
+            "emailSubject": {
+              "type": "string",
+              "defaultValue": "Azure Site Status Notification",
+              "metadata": {
+                "description": "Email subject for notification emails"
+              }
+            },
+            "emailRecipients": {
+              "type": "string",
+              "metadata": {
+                "description": "Semicolon-separated notification recipients"
+              }
+            },
+            "acsEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "ACS endpoint used by the EmailClient managed identity flow"
+              }
+            },
+            "dashboardUrl": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional dashboard URL included in notification emails"
+              }
+            }
+          },
+          "variables": {
+            "managedIdentityEmailSettings": {
+              "EMAIL_SENDER": "[parameters('emailSender')]",
+              "EMAIL_SUBJECT": "[parameters('emailSubject')]",
+              "EMAIL_RECIPIENTS": "[parameters('emailRecipients')]",
+              "ACS_ENDPOINT": "[parameters('acsEndpoint')]"
+            },
+            "optionalDashboardSetting": "[if(empty(parameters('dashboardUrl')), createObject(), createObject('dashboard_url', parameters('dashboardUrl')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('functionAppName'), 'appsettings')]",
+              "properties": "[union(reference(resourceId('Microsoft.Web/sites/config', parameters('functionAppName'), 'appsettings'), '2022-09-01').properties, variables('managedIdentityEmailSettings'), variables('optionalDashboardSetting'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "apim-healthcheck-api",
+      "resourceGroup": "[parameters('apimResourceGroup')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "apimName": {
+            "value": "[parameters('apimName')]"
+          },
+          "functionAppName": {
+            "value": "[parameters('functionAppName')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5154863560851671476"
+            }
+          },
+          "parameters": {
+            "apimName": {
+              "type": "string",
+              "metadata": {
+                "description": "Shared APIM instance name"
+              }
+            },
+            "functionAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Function App name for backend URL"
+              }
+            },
+            "tenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Entra ID tenant ID for JWT validation"
+              }
+            }
+          },
+          "variables": {
+            "jwtPolicyPrefix": "[format('<validate-jwt header-name=\"Authorization\" failed-validation-httpcode=\"401\" require-scheme=\"Bearer\"><openid-config url=\"https://login.microsoftonline.com/{0}/v2.0/.well-known/openid-configuration\" /><required-claims><claim name=\"roles\" match=\"any\"><value>Admin</value></claim></required-claims></validate-jwt>', parameters('tenantId'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ApiManagement/service/namedValues",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}', parameters('apimName'), 'healthcheck-function-key')]",
+              "properties": {
+                "displayName": "healthcheck-function-key",
+                "value": "REPLACE_WITH_FUNCTION_KEY",
+                "secret": true
+              }
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/backends",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}', parameters('apimName'), 'healthcheck-functions')]",
+              "properties": {
+                "protocol": "http",
+                "url": "[format('https://{0}.azurewebsites.net/api', parameters('functionAppName'))]",
+                "credentials": {
+                  "header": {
+                    "x-functions-key": [
+                      "{{healthcheck-function-key}}"
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/namedValues', parameters('apimName'), 'healthcheck-function-key')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}', parameters('apimName'), 'healthcheck-api')]",
+              "properties": {
+                "displayName": "Health Check API",
+                "path": "healthcheck",
+                "protocols": [
+                  "https"
+                ],
+                "subscriptionRequired": false
+              }
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <cors allow-credentials=\"true\">\r\n      <allowed-origins>\r\n        <origin>*</origin>\r\n      </allowed-origins>\r\n      <allowed-methods>\r\n        <method>GET</method>\r\n        <method>POST</method>\r\n        <method>PUT</method>\r\n        <method>DELETE</method>\r\n        <method>OPTIONS</method>\r\n      </allowed-methods>\r\n      <allowed-headers>\r\n        <header>*</header>\r\n      </allowed-headers>\r\n    </cors>\r\n    <set-backend-service backend-id=\"healthcheck-functions\" />\r\n    <rate-limit calls=\"60\" renewal-period=\"60\" />\r\n  </inbound>\r\n  <backend>\r\n    <base />\r\n  </backend>\r\n  <outbound>\r\n    <base />\r\n  </outbound>\r\n  <on-error>\r\n    <base />\r\n  </on-error>\r\n</policies>\r\n"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]",
+                "[resourceId('Microsoft.ApiManagement/service/backends', parameters('apimName'), 'healthcheck-functions')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'get-status')]",
+              "properties": {
+                "displayName": "Get Status",
+                "method": "GET",
+                "urlTemplate": "/status"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'get-status', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <rewrite-uri template=\"/statusSiteStateReader\" />\r\n  </inbound>\r\n  <backend><base /></backend>\r\n  <outbound><base /></outbound>\r\n  <on-error><base /></on-error>\r\n</policies>\r\n"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'get-status')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'get-status-history')]",
+              "properties": {
+                "displayName": "Get Status History",
+                "method": "GET",
+                "urlTemplate": "/status/history"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'get-status-history', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <rewrite-uri template=\"/statusHistoryReader\" />\r\n  </inbound>\r\n  <backend><base /></backend>\r\n  <outbound><base /></outbound>\r\n  <on-error><base /></on-error>\r\n</policies>\r\n"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'get-status-history')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'admin-poll')]",
+              "properties": {
+                "displayName": "Trigger Poll (Admin)",
+                "method": "POST",
+                "urlTemplate": "/admin/poll"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'admin-poll', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "[format('<policies><inbound><base />{0}<rewrite-uri template=\"/httpPollerTrigger\" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>', variables('jwtPolicyPrefix'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'admin-poll')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'admin-get-urls')]",
+              "properties": {
+                "displayName": "Get URLs (Admin)",
+                "method": "GET",
+                "urlTemplate": "/admin/urls"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'admin-get-urls', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "[format('<policies><inbound><base />{0}<rewrite-uri template=\"/statusUrlListReader\" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>', variables('jwtPolicyPrefix'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'admin-get-urls')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'admin-create-url')]",
+              "properties": {
+                "displayName": "Create URL (Admin)",
+                "method": "POST",
+                "urlTemplate": "/admin/urls"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'admin-create-url', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "[format('<policies><inbound><base />{0}<rewrite-uri template=\"/urlPersister\" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>', variables('jwtPolicyPrefix'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'admin-create-url')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'admin-update-url')]",
+              "properties": {
+                "displayName": "Update URL (Admin)",
+                "method": "PUT",
+                "urlTemplate": "/admin/urls"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'admin-update-url', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "[format('<policies><inbound><base />{0}<rewrite-uri template=\"/urlPersister\" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>', variables('jwtPolicyPrefix'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'admin-update-url')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('apimName'), 'healthcheck-api', 'admin-delete-url')]",
+              "properties": {
+                "displayName": "Delete URL (Admin)",
+                "method": "DELETE",
+                "urlTemplate": "/admin/urls"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), 'healthcheck-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2023-09-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('apimName'), 'healthcheck-api', 'admin-delete-url', 'policy')]",
+              "properties": {
+                "format": "xml",
+                "value": "[format('<policies><inbound><base />{0}<rewrite-uri template=\"/urlPersister\" /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>', variables('jwtPolicyPrefix'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), 'healthcheck-api', 'admin-delete-url')]"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "acsEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Communication/communicationServices', variables('acsName')), '2023-04-01').hostName]"
+    },
+    "acsEmailDomain": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Communication/emailServices/domains', format('{0}-email', variables('acsName')), 'AzureManagedDomain'), '2023-04-01').mailFromSenderDomain]"
+    },
+    "staticWebAppUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', variables('swaName')), '2023-12-01').defaultHostname]"
+    },
+    "staticWebAppId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Web/staticSites', variables('swaName'))]"
+    },
+    "apimGatewayUrl": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('apimResourceGroup')), 'Microsoft.ApiManagement/service', parameters('apimName')), '2023-09-01-preview').gatewayUrl]"
+    }
+  }
+}
