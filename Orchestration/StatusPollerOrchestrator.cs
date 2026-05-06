@@ -22,9 +22,13 @@ public static class StatusPollerOrchestrator
             return;
         }
 
+        // Step 2: capture previous states before polling so we can detect transitions
+        var previousStates = await context.CallActivityAsync<Dictionary<string, string>>(
+            nameof(GetPreviousStatesActivity), input: string.Empty);
+
         logger.LogInformation("Fanning out to poll {Count} URL(s).", urls.Count);
 
-        // Step 2: fan-out — poll all URLs in parallel, 3 retries each
+        // Step 3: fan-out — poll all URLs in parallel, 3 retries each
         var retryOptions = new TaskOptions
         {
             Retry = new RetryPolicy(
@@ -39,18 +43,39 @@ public static class StatusPollerOrchestrator
 
         var results = await Task.WhenAll(pollTasks);
 
-        // Step 3: fan-in — notify only on failures
-        var failures = results.Where(r => r.Status != "OK").ToList();
-        logger.LogInformation(
-            "Poll cycle complete. {FailCount} failure(s) out of {Total} URL(s).",
-            failures.Count, results.Length);
+        // Step 4: fan-in — detect state transitions only
+        var newlyDown = new List<PollResult>();
+        var newlyUp = new List<PollResult>();
 
-        // Step 4: prune old history rows concurrently with notification
+        foreach (var result in results)
+        {
+            var wasOk = !previousStates.TryGetValue(result.UrlName, out var prev) || prev == "OK";
+            var isOk = result.Status == "OK";
+
+            if (!wasOk && isOk)
+                newlyUp.Add(result);
+            else if (wasOk && !isOk)
+                newlyDown.Add(result);
+            // no change → no notification
+        }
+
+        logger.LogInformation(
+            "Poll cycle complete. {DownCount} newly down, {UpCount} newly recovered, out of {Total} URL(s).",
+            newlyDown.Count, newlyUp.Count, results.Length);
+
+        // Step 5: send notifications and prune concurrently
         var pruneTask = context.CallActivityAsync(nameof(PruneHistoryActivity), urls);
 
-        if (failures.Count > 0)
+        if (newlyDown.Count > 0)
         {
-            await context.CallActivityAsync(nameof(SendNotificationActivity), failures);
+            await context.CallActivityAsync(nameof(SendNotificationActivity),
+                new NotificationRequest { Type = NotificationType.Down, Items = newlyDown });
+        }
+
+        if (newlyUp.Count > 0)
+        {
+            await context.CallActivityAsync(nameof(SendNotificationActivity),
+                new NotificationRequest { Type = NotificationType.Recovery, Items = newlyUp });
         }
 
         await pruneTask;

@@ -21,26 +21,49 @@ public class UrlPersister
         if (req.Method.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase))
             return new UrlPersisterOutput { HttpResponse = req.CreateResponse(HttpStatusCode.OK) };
 
-        var body = await JsonSerializer.DeserializeAsync<List<JsonElement>>(req.Body);
         var urlList = new List<UrlManagementMessage>();
 
-        if (body is not null)
+        if (req.Method.Equals("DELETE", StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var item in body)
+            // DELETE passes urlName as a query param — no request body
+            var urlName = req.Query["urlName"] ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(urlName))
             {
-                var urlName = item.TryGetProperty("urlName", out var n) ? n.GetString() ?? string.Empty : string.Empty;
-                var url = item.TryGetProperty("url", out var u) ? u.GetString() ?? string.Empty : string.Empty;
-
-                var msg = new UrlManagementMessage
+                urlList.Add(new UrlManagementMessage
                 {
                     UrlName = urlName,
-                    Url = url,
+                    Url = string.Empty,
                     Date = DateTime.UtcNow,
-                    Action = string.IsNullOrEmpty(url) ? "DELETE" : req.Method.ToUpperInvariant()
-                };
+                    Action = "DELETE"
+                });
+                _logger.LogInformation("{UrlName} - DELETE", urlName);
+            }
+        }
+        else
+        {
+            // POST / PUT send a JSON array body
+            List<JsonElement>? body = null;
+            if (req.Body.Length > 0)
+                body = await JsonSerializer.DeserializeAsync<List<JsonElement>>(req.Body);
 
-                _logger.LogInformation("{UrlName} - {Action}", msg.UrlName, msg.Action);
-                urlList.Add(msg);
+            if (body is not null)
+            {
+                foreach (var item in body)
+                {
+                    var urlName = item.TryGetProperty("urlName", out var n) ? n.GetString() ?? string.Empty : string.Empty;
+                    var url = item.TryGetProperty("url", out var u) ? u.GetString() ?? string.Empty : string.Empty;
+
+                    var msg = new UrlManagementMessage
+                    {
+                        UrlName = urlName,
+                        Url = url,
+                        Date = DateTime.UtcNow,
+                        Action = req.Method.ToUpperInvariant()
+                    };
+
+                    _logger.LogInformation("{UrlName} - {Action}", msg.UrlName, msg.Action);
+                    urlList.Add(msg);
+                }
             }
         }
 

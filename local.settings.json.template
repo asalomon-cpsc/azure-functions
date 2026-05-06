@@ -5,6 +5,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "EMAIL_SENDER": "DoNotReply@ef8338de-abde-4564-ac92-329ee056475b.azurecomm.net",
     "EMAIL_SUBJECT": "Azure Site Status Notification",
+    "EMAIL_RECOVERY_SUBJECT": "Azure Site Status - RECOVERED",
     "EMAIL_RECIPIENTS": "asalomon@cpsc.gov",
     "ACS_CONNECTION_STRING": "<acs-connection-string-for-local-dev>",
     "ACS_ENDPOINT": "https://vsemailaz.unitedstates.communication.azure.com",
