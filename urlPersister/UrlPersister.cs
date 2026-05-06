@@ -14,9 +14,12 @@ public class UrlPersister
 
     [Function("urlPersister")]
     public async Task<UrlPersisterOutput> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "post", "delete", "put")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Function, "post", "delete", "put", "options")] HttpRequestData req)
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
+
+        if (req.Method.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase))
+            return new UrlPersisterOutput { HttpResponse = req.CreateResponse(HttpStatusCode.OK) };
 
         var body = await JsonSerializer.DeserializeAsync<List<JsonElement>>(req.Body);
         var urlList = new List<UrlManagementMessage>();

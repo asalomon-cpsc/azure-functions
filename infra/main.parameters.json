@@ -8,6 +8,18 @@
     "functionAppName": {
       "value": "healthchker"
     },
+    "emailSender": {
+      "value": "DoNotReply@ef8338de-abde-4564-ac92-329ee056475b.azurecomm.net"
+    },
+    "emailSubject": {
+      "value": "Azure Site Status Notification"
+    },
+    "emailRecipients": {
+      "value": "asalomon@cpsc.gov"
+    },
+    "acsEndpoint": {
+      "value": "https://vsemailaz.unitedstates.communication.azure.com"
+    },
     "apimResourceGroup": {
       "value": "rg-apim-shared"
     },

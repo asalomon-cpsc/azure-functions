@@ -10,11 +10,23 @@ targetScope = 'resourceGroup'
 @description('Base name prefix for project resources')
 param appName string = 'cpsc'
 
-@description('Azure region')
-param location string = resourceGroup().location
-
 @description('Existing Function App name')
 param functionAppName string = 'healthchker'
+
+@description('ACS sender address used by notification emails')
+param emailSender string = 'DoNotReply@ef8338de-abde-4564-ac92-329ee056475b.azurecomm.net'
+
+@description('Email subject for notification emails')
+param emailSubject string = 'Azure Site Status Notification'
+
+@description('Semicolon-separated notification recipients')
+param emailRecipients string = 'asalomon@cpsc.gov'
+
+@description('ACS endpoint used by the EmailClient managed identity flow')
+param acsEndpoint string = 'https://vsemailaz.unitedstates.communication.azure.com'
+
+@description('Optional dashboard URL included in notification emails')
+param dashboardUrl string = ''
 
 @description('Shared APIM resource group')
 param apimResourceGroup string = 'rg-apim-shared'
@@ -32,7 +44,6 @@ param swaLocation string = 'eastus2'
 // ─── Variables ────────────────────────────────────────────────
 var acsName = 'acs-${appName}-email'
 var swaName = 'swa-${appName}-healthcheck'
-var apimApiName = 'healthcheck-api'
 
 // ─── Azure Communication Services ────────────────────────────
 resource acs 'Microsoft.Communication/communicationServices@2023-04-01' = {
@@ -40,6 +51,9 @@ resource acs 'Microsoft.Communication/communicationServices@2023-04-01' = {
   location: 'global'
   properties: {
     dataLocation: 'United States'
+    linkedDomains: [
+      acsEmailDomain.id
+    ]
   }
 }
 
@@ -58,6 +72,18 @@ resource acsEmailDomain 'Microsoft.Communication/emailServices/domains@2023-04-0
   properties: {
     domainManagement: 'AzureManaged'
     userEngagementTracking: 'Disabled'
+  }
+}
+
+module functionSettings './functions/function-app-settings.bicep' = {
+  name: 'function-app-settings'
+  params: {
+    functionAppName: functionAppName
+    emailSender: emailSender
+    emailSubject: emailSubject
+    emailRecipients: emailRecipients
+    acsEndpoint: acsEndpoint
+    dashboardUrl: dashboardUrl
   }
 }
 
@@ -106,6 +132,5 @@ output apimGatewayUrl string = apim.properties.gatewayUrl
 // 1. Create Entra ID App Registrations (API + SPA) — cannot be done in Bicep
 // 2. Assign users to "Admin" app role
 // 3. Update APIM named value 'healthcheck-function-key' with actual Function App host key
-// 4. Update Function App setting ACS_ENDPOINT with ACS endpoint
-// 5. Configure SPA redirect URIs with actual Static Web App URL
-// 6. Update CORS allowed-origins in apim-healthcheck-api.bicep with actual SWA URL
+// 4. Configure SPA redirect URIs with actual Static Web App URL
+// 5. Update CORS allowed-origins in apim-healthcheck-api.bicep with actual SWA URL
