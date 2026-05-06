@@ -71,7 +71,7 @@ public class UrlPersister
 
         return new UrlPersisterOutput
         {
-            QueueMessage = JsonSerializer.Serialize(urlList),
+            QueueMessage = urlList,
             HttpResponse = response
         };
     }
@@ -80,7 +80,7 @@ public class UrlPersister
 public class UrlPersisterOutput
 {
     [QueueOutput("url-management-queue", Connection = "AzureWebJobsStorage")]
-    public string? QueueMessage { get; set; }
+    public List<UrlManagementMessage>? QueueMessage { get; set; }
 
     public HttpResponseData? HttpResponse { get; set; }
 }
