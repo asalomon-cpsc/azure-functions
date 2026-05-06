@@ -20,22 +20,37 @@ public class StatusHistoryReader
         _logger.LogInformation("C# HTTP trigger function processed a request.");
 
         var urlName = req.Query["urlName"];
-        var results = new List<StatusTableEntity>();
+        int days = int.TryParse(req.Query["days"], out var d) ? Math.Clamp(d, 1, 90) : 30;
+        int pageSize = int.TryParse(req.Query["pageSize"], out var ps) ? Math.Clamp(ps, 1, 500) : 200;
+        string? pageToken = string.IsNullOrEmpty(req.Query["pageToken"]) ? null : req.Query["pageToken"];
 
-        // Bug fix from original: the history writer stores RowKey as "urlName_timestamp",
-        // so an exact RowKey == urlName match never found anything.
-        // Fixed to use a prefix scan: RowKey starts with "urlName_".
-        string filter = string.IsNullOrWhiteSpace(urlName)
-            ? "PartitionKey eq 'statuses'"
-            : $"PartitionKey eq 'statuses' and RowKey ge '{urlName}_' and RowKey lt '{urlName}_~'";
+        var cutoff = DateTime.UtcNow.AddDays(-days);
+        string filter;
 
-        await foreach (var entity in tableClient.QueryAsync<StatusTableEntity>(filter))
+        if (!string.IsNullOrWhiteSpace(urlName))
         {
-            results.Add(entity);
+            // RowKey range filter is O(result set) — uses the row index directly.
+            // RowKey format: urlName_<ISO8601 UTC> — sorts lexicographically by time.
+            filter = $"PartitionKey eq 'statuses' and RowKey ge '{urlName}_{cutoff:o}' and RowKey lt '{urlName}_~'";
+        }
+        else
+        {
+            // All-URLs scan: Timestamp filter is unindexed but acceptable for low-frequency admin views.
+            filter = $"PartitionKey eq 'statuses' and Timestamp ge datetime'{cutoff:yyyy-MM-ddTHH:mm:ssZ}'";
+        }
+
+        var items = new List<StatusTableEntity>();
+        string? nextPageToken = null;
+
+        await foreach (var page in tableClient.QueryAsync<StatusTableEntity>(filter).AsPages(pageToken, pageSize))
+        {
+            items.AddRange(page.Values);
+            nextPageToken = page.ContinuationToken;
+            break; // return one page per request; client uses nextPageToken to load more
         }
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(results);
+        await response.WriteAsJsonAsync(new { items, nextPageToken });
         return response;
     }
 }

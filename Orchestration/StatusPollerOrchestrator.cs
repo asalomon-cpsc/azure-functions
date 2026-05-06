@@ -45,9 +45,14 @@ public static class StatusPollerOrchestrator
             "Poll cycle complete. {FailCount} failure(s) out of {Total} URL(s).",
             failures.Count, results.Length);
 
+        // Step 4: prune old history rows concurrently with notification
+        var pruneTask = context.CallActivityAsync(nameof(PruneHistoryActivity), urls);
+
         if (failures.Count > 0)
         {
             await context.CallActivityAsync(nameof(SendNotificationActivity), failures);
         }
+
+        await pruneTask;
     }
 }
