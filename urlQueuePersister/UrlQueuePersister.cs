@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Azure;
 using Azure.Data.Tables;
 using Microsoft.Azure.Functions.Worker;
@@ -19,47 +18,39 @@ public class UrlQueuePersister
 
     [Function("urlQueuePersister")]
     public async Task Run(
-        [QueueTrigger("url-management-queue", Connection = "AzureWebJobsStorage")] string message)
+        [QueueTrigger("url-management-queue", Connection = "AzureWebJobsStorage")] UrlManagementMessage item)
     {
-        var urls = JsonSerializer.Deserialize<List<UrlManagementMessage>>(message,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (urls is null) return;
-
         var tableClient = _tableService.GetTableClient("urlTable");
         await tableClient.CreateIfNotExistsAsync();
 
-        foreach (var item in urls)
+        _logger.LogInformation("Url dequeued: {UrlName} - {Action}", item.UrlName, item.Action);
+
+        var entity = new UrlTableEntity
         {
-            _logger.LogInformation("Url dequeued: {UrlName} - {Action}", item.UrlName, item.Action);
+            PartitionKey = "urls",
+            RowKey = item.UrlName,
+            UrlName = item.UrlName,
+            Url = item.Url,
+            Action = item.Action,
+            Date = item.Date,
+            ETag = ETag.All
+        };
 
-            var entity = new UrlTableEntity
+        if (item.Action is "POST" or "PUT")
+        {
+            await tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace);
+            _logger.LogInformation("Upserted {UrlName} to urlTable.", item.UrlName);
+        }
+        else if (item.Action == "DELETE")
+        {
+            try
             {
-                PartitionKey = "urls",
-                RowKey = item.UrlName,
-                UrlName = item.UrlName,
-                Url = item.Url,
-                Action = item.Action,
-                Date = item.Date,
-                ETag = ETag.All
-            };
-
-            if (item.Action is "POST" or "PUT")
-            {
-                await tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace);
-                _logger.LogInformation("Upserted {UrlName} to urlTable.", item.UrlName);
+                await tableClient.DeleteEntityAsync("urls", item.UrlName, ETag.All);
+                _logger.LogInformation("Deleted {UrlName} from urlTable.", item.UrlName);
             }
-            else if (item.Action == "DELETE")
+            catch (RequestFailedException ex) when (ex.Status == 404)
             {
-                try
-                {
-                    await tableClient.DeleteEntityAsync("urls", item.UrlName, ETag.All);
-                    _logger.LogInformation("Deleted {UrlName} from urlTable.", item.UrlName);
-                }
-                catch (RequestFailedException ex) when (ex.Status == 404)
-                {
-                    _logger.LogWarning("Entity {UrlName} not found for delete, skipping.", item.UrlName);
-                }
+                _logger.LogWarning("Entity {UrlName} not found for delete, skipping.", item.UrlName);
             }
         }
     }
