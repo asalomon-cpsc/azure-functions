@@ -18,6 +18,9 @@ param acsEndpoint string
 @description('Optional dashboard URL included in notification emails')
 param dashboardUrl string = ''
 
+@description('Number of days to retain rows in statusHistoryTable before pruning')
+param historyRetentionDays string = '90'
+
 resource functionApp 'Microsoft.Web/sites@2022-09-01' existing = {
   name: functionAppName
 }
@@ -30,6 +33,7 @@ var managedIdentityEmailSettings = {
   EMAIL_SUBJECT: emailSubject
   EMAIL_RECIPIENTS: emailRecipients
   ACS_ENDPOINT: acsEndpoint
+  HISTORY_RETENTION_DAYS: historyRetentionDays
 }
 
 var optionalDashboardSetting = empty(dashboardUrl) ? {} : {

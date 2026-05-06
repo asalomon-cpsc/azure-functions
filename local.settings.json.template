@@ -9,6 +9,7 @@
     "ACS_CONNECTION_STRING": "<acs-connection-string-for-local-dev>",
     "ACS_ENDPOINT": "https://vsemailaz.unitedstates.communication.azure.com",
     "dashboard_url": "<url-of-your-status-dashboard>",
-    "STATUS_URL_LIST_PROXY": "<full-url-of-statusUrlListReader-function-with-code-key>"
+    "STATUS_URL_LIST_PROXY": "<full-url-of-statusUrlListReader-function-with-code-key>",
+    "HISTORY_RETENTION_DAYS": "90"
   }
 }

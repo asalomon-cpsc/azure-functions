@@ -43,6 +43,7 @@ public class PollUrlActivity
 
         // Write current state (RowKey = urlName — one row per monitored URL)
         var statusTable = _tableService.GetTableClient("statusTable");
+        await statusTable.CreateIfNotExistsAsync();
         var stateEntity = new StatusTableEntity
         {
             PartitionKey = "statuses",
@@ -67,6 +68,7 @@ public class PollUrlActivity
 
         // Write history row (RowKey = urlName_timestamp — one row per poll)
         var historyTable = _tableService.GetTableClient("statusHistoryTable");
+        await historyTable.CreateIfNotExistsAsync();
         var historyEntity = new StatusTableEntity
         {
             PartitionKey = "statuses",
@@ -87,6 +89,60 @@ public class PollUrlActivity
         {
             _logger.LogError(ex, "Failed to insert history for {UrlName}", item.UrlName);
             throw;
+        }
+
+        // Compute and upsert pre-aggregated stats into statusStatsTable
+        var statsTable = _tableService.GetTableClient("statusStatsTable");
+        await statsTable.CreateIfNotExistsAsync();
+
+        StatusStatsEntity stats;
+        try
+        {
+            var existing = await statsTable.GetEntityAsync<StatusStatsEntity>("stats", item.UrlName);
+            stats = existing.Value;
+        }
+        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        {
+            stats = new StatusStatsEntity
+            {
+                PartitionKey = "stats",
+                RowKey = item.UrlName,
+                UrlName = item.UrlName,
+                Url = item.Url
+            };
+        }
+
+        stats.TotalPolls++;
+        if (result.Status != "OK") stats.TotalDownPolls++;
+        stats.UptimePct = Math.Round((stats.TotalPolls - stats.TotalDownPolls) / (double)stats.TotalPolls * 100, 2);
+
+        // Recompute rolling 30-day window from statusHistoryTable using RowKey range
+        var cutoff30 = now.AddDays(-30);
+        var windowFilter = $"PartitionKey eq 'statuses' and RowKey ge '{item.UrlName}_{cutoff30:o}' and RowKey lt '{item.UrlName}_~'";
+        int windowPolls = 0, windowDown = 0;
+        await foreach (var row in historyTable.QueryAsync<StatusTableEntity>(windowFilter))
+        {
+            windowPolls++;
+            if (row.Status != "OK") windowDown++;
+        }
+
+        stats.Last30DayPolls = windowPolls;
+        stats.Last30DayDownPolls = windowDown;
+        stats.Last30DayUptimePct = windowPolls > 0
+            ? Math.Round((windowPolls - windowDown) / (double)windowPolls * 100, 2)
+            : 100.0;
+        stats.LastStatus = result.Status;
+        stats.LastChecked = now;
+        stats.ETag = ETag.All;
+
+        try
+        {
+            await statsTable.UpsertEntityAsync(stats, TableUpdateMode.Replace);
+        }
+        catch (Exception ex)
+        {
+            // Stats failure is non-critical — log but don't fail the poll activity
+            _logger.LogError(ex, "Failed to upsert stats for {UrlName}", item.UrlName);
         }
 
         _logger.LogInformation("Poll result for {UrlName}: {Status}", item.UrlName, result.Status);

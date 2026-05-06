@@ -89,3 +89,32 @@ public class UrlTableEntity : ITableEntity
     public string Action { get; set; } = string.Empty;
     public DateTime Date { get; set; } = DateTime.UtcNow;
 }
+
+/// <summary>
+/// Row in statusStatsTable. One row per monitored URL, upserted every poll cycle.
+/// RowKey = UrlName. Provides pre-aggregated uptime stats so the UI doesn't need
+/// to scan statusHistoryTable to compute counts.
+/// </summary>
+public class StatusStatsEntity : ITableEntity
+{
+    public string PartitionKey { get; set; } = "stats";
+    public string RowKey { get; set; } = string.Empty; // UrlName
+    public DateTimeOffset? Timestamp { get; set; }
+    public ETag ETag { get; set; } = ETag.All;
+
+    public string UrlName { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+
+    // All-time counters (incremented each cycle; never reset)
+    public int TotalPolls { get; set; }
+    public int TotalDownPolls { get; set; }
+    public double UptimePct { get; set; }
+
+    // Rolling 30-day window (recomputed from statusHistoryTable each cycle)
+    public int Last30DayPolls { get; set; }
+    public int Last30DayDownPolls { get; set; }
+    public double Last30DayUptimePct { get; set; }
+
+    public string LastStatus { get; set; } = string.Empty;
+    public DateTime LastChecked { get; set; } = DateTime.UtcNow;
+}
