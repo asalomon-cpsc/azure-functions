@@ -9,6 +9,9 @@ param emailSender string
 @description('Email subject for notification emails')
 param emailSubject string = 'Azure Site Status Notification'
 
+@description('Email subject for recovery emails')
+param emailRecoverySubject string = 'Azure Site Status - RECOVERED'
+
 @description('Semicolon-separated notification recipients')
 param emailRecipients string
 
@@ -31,6 +34,7 @@ var existingAppSettings = reference(resourceId('Microsoft.Web/sites/config', fun
 var managedIdentityEmailSettings = {
   EMAIL_SENDER: emailSender
   EMAIL_SUBJECT: emailSubject
+  EMAIL_RECOVERY_SUBJECT: emailRecoverySubject
   EMAIL_RECIPIENTS: emailRecipients
   ACS_ENDPOINT: acsEndpoint
   HISTORY_RETENTION_DAYS: historyRetentionDays

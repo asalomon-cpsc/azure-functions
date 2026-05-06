@@ -7,9 +7,8 @@ using Microsoft.Extensions.Logging;
 namespace CpscFunctions;
 
 /// <summary>
-/// Sends an ACS email alert for all failing URLs.
-/// Replaces the old emailAlerter_csharp queue-triggered function.
-/// Called by StatusPollerOrchestrator only when at least one URL is non-OK.
+/// Sends an ACS email alert for all failing URLs, or a recovery email when sites come back up.
+/// Called by StatusPollerOrchestrator only on state transitions (newly down or newly recovered).
 /// </summary>
 public class SendNotificationActivity
 {
@@ -23,15 +22,16 @@ public class SendNotificationActivity
     }
 
     [Function(nameof(SendNotificationActivity))]
-    public async Task Run([ActivityTrigger] List<PollResult> failures)
+    public async Task Run([ActivityTrigger] NotificationRequest notification)
     {
-        if (failures is null || failures.Count == 0) return;
+        if (notification?.Items is null || notification.Items.Count == 0) return;
 
         var sender = Environment.GetEnvironmentVariable("EMAIL_SENDER")
             ?? throw new InvalidOperationException("EMAIL_SENDER app setting is not configured.");
 
-        var subject = Environment.GetEnvironmentVariable("EMAIL_SUBJECT")
-            ?? "Azure Site Status Notification";
+        var subject = notification.Type == NotificationType.Recovery
+            ? (Environment.GetEnvironmentVariable("EMAIL_RECOVERY_SUBJECT") ?? "Azure Site Status - RECOVERED")
+            : (Environment.GetEnvironmentVariable("EMAIL_SUBJECT") ?? "Azure Site Status Notification");
 
         var recipientsEnv = Environment.GetEnvironmentVariable("EMAIL_RECIPIENTS")
             ?? throw new InvalidOperationException("EMAIL_RECIPIENTS app setting is not configured.");
@@ -39,17 +39,26 @@ public class SendNotificationActivity
         var dashboardUrl = Environment.GetEnvironmentVariable("dashboard_url") ?? "Location not loaded";
 
         var body = new StringBuilder();
-        body.AppendLine("<h3>The following resources had or have a status change: </h3>");
 
-        foreach (var state in failures)
+        if (notification.Type == NotificationType.Recovery)
         {
-            _logger.LogInformation("{UrlName} | {Status} | {Description}",
-                state.UrlName, state.Status, state.Description);
+            body.AppendLine("<h3>The following resources have recovered and are back online:</h3>");
+        }
+        else
+        {
+            body.AppendLine("<h3>The following resources had or have a status change: </h3>");
+        }
+
+        foreach (var state in notification.Items)
+        {
+            _logger.LogInformation("{UrlName} | {Type} | {Status} | {Description}",
+                state.UrlName, notification.Type, state.Status, state.Description);
 
             body.AppendLine($"<p>UrlName : <strong>{state.UrlName}</strong></p>");
             body.AppendLine($"<p>Url : {state.Url}</p>");
             body.AppendLine($"<p>Poll Status : {state.Status}</p>");
-            body.AppendLine($"<p>Status Description : {state.Description}</p>");
+            if (notification.Type != NotificationType.Recovery)
+                body.AppendLine($"<p>Status Description : {state.Description}</p>");
             body.AppendLine("<hr/>");
             body.AppendLine("---------------");
             body.AppendLine($"<p>To view the dashboard for all sites click here <strong>(DOES NOT WORK WITH IE BROWSER)</strong>: <a href='{dashboardUrl}'>{dashboardUrl}</a></p>");

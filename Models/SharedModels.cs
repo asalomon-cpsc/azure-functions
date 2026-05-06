@@ -118,3 +118,23 @@ public class StatusStatsEntity : ITableEntity
     public string LastStatus { get; set; } = string.Empty;
     public DateTime LastChecked { get; set; } = DateTime.UtcNow;
 }
+
+// ---------------------------------------------------------------------------
+// Notification models
+// ---------------------------------------------------------------------------
+
+public enum NotificationType
+{
+    Down,
+    Recovery
+}
+
+/// <summary>
+/// Passed to SendNotificationActivity to indicate whether the email
+/// is a "down" alert or a "site recovered" notification.
+/// </summary>
+public class NotificationRequest
+{
+    public NotificationType Type { get; set; }
+    public List<PollResult> Items { get; set; } = new();
+}

@@ -8,19 +8,26 @@ namespace CpscFunctions;
 
 public class UrlQueuePersister
 {
+    private readonly TableServiceClient _tableService;
     private readonly ILogger<UrlQueuePersister> _logger;
 
-    public UrlQueuePersister(ILogger<UrlQueuePersister> logger) => _logger = logger;
+    public UrlQueuePersister(TableServiceClient tableService, ILogger<UrlQueuePersister> logger)
+    {
+        _tableService = tableService;
+        _logger = logger;
+    }
 
     [Function("urlQueuePersister")]
     public async Task Run(
-        [QueueTrigger("url-management-queue", Connection = "AzureWebJobsStorage")] string message,
-        [TableInput("urlTable", Connection = "AzureWebJobsStorage")] TableClient tableClient)
+        [QueueTrigger("url-management-queue", Connection = "AzureWebJobsStorage")] string message)
     {
         var urls = JsonSerializer.Deserialize<List<UrlManagementMessage>>(message,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         if (urls is null) return;
+
+        var tableClient = _tableService.GetTableClient("urlTable");
+        await tableClient.CreateIfNotExistsAsync();
 
         foreach (var item in urls)
         {
@@ -40,12 +47,14 @@ public class UrlQueuePersister
             if (item.Action is "POST" or "PUT")
             {
                 await tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace);
+                _logger.LogInformation("Upserted {UrlName} to urlTable.", item.UrlName);
             }
             else if (item.Action == "DELETE")
             {
                 try
                 {
                     await tableClient.DeleteEntityAsync("urls", item.UrlName, ETag.All);
+                    _logger.LogInformation("Deleted {UrlName} from urlTable.", item.UrlName);
                 }
                 catch (RequestFailedException ex) when (ex.Status == 404)
                 {
